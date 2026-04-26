@@ -32,13 +32,15 @@ struct ContentView: View {
                     .padding()
                 }
                 
-                // Language Picker Header
-                HStack(spacing: 16) {
+                // Minimal Header
+                HStack(spacing: 12) {
                     Text(sourceLanguage.displayName)
-                        .font(.headline)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                     
-                    Image(systemName: "arrow.right.circle.fill")
-                        .foregroundColor(.blue)
+                    Image(systemName: "arrow.right")
+                        .font(.caption)
+                        .foregroundColor(.tertiaryLabel)
                     
                     Picker("Target Language", selection: $targetLanguage) {
                         ForEach(SupportedLanguage.allTargets) { lang in
@@ -46,19 +48,17 @@ struct ContentView: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    .font(.headline)
+                    .font(.subheadline)
                     .tint(.primary)
                 }
-                .padding()
-                .frame(maxWidth: .infinity)
-                .background(Color(UIColor.secondarySystemBackground))
+                .padding(.vertical, 8)
                 
                 Divider()
                 
-                // Chat Timeline
+                // Flat Chat Timeline
                 ScrollViewReader { proxy in
                     ScrollView {
-                        VStack(spacing: 16) {
+                        VStack(spacing: 24) {
                             ForEach(segments) { segment in
                                 SegmentView(segment: segment) {
                                     speak(text: segment.translatedText, language: targetLanguage.ttsCode)
@@ -71,7 +71,8 @@ struct ContentView: View {
                                     .id("live")
                             }
                         }
-                        .padding()
+                        .padding(.vertical, 24)
+                        .padding(.horizontal, 20)
                     }
                     .onChange(of: segments.count) {
                         saveHistory()
@@ -100,35 +101,35 @@ struct ContentView: View {
                             if audioController.isRecording {
                                 WaveformView(isRecording: true)
                                     .frame(width: 120, height: 80)
-                                    .opacity(0.3)
+                                    .opacity(0.2)
                             }
                             
                             ZStack {
                                 Circle()
-                                    .stroke(audioController.isRecording ? Color.red : Color.primary.opacity(0.3), lineWidth: 4)
-                                    .frame(width: 72, height: 72)
+                                    .stroke(audioController.isRecording ? Color.red : Color.secondary.opacity(0.2), lineWidth: 2)
+                                    .frame(width: 64, height: 64)
                                 
                                 if audioController.isRecording {
-                                    RoundedRectangle(cornerRadius: 6)
+                                    RoundedRectangle(cornerRadius: 4)
                                         .fill(Color.red)
-                                        .frame(width: 28, height: 28)
+                                        .frame(width: 24, height: 24)
                                 } else {
                                     Circle()
                                         .fill(Color.red)
-                                        .frame(width: 60, height: 60)
+                                        .frame(width: 54, height: 54)
                                 }
                             }
                         }
-                        .frame(height: 100)
+                        .frame(height: 80)
                     }
                     .disabled(!audioController.permissionsGranted)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 32)
                     .padding(.top, 16)
                 }
                 .frame(maxWidth: .infinity)
-                .background(Color(UIColor.systemBackground).shadow(color: .black.opacity(0.1), radius: 10, y: -5))
+                .background(Color(UIColor.systemBackground).ignoresSafeArea(edges: .bottom))
             }
-            .navigationTitle("Interpreter")
+            .navigationTitle("Translate")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -144,7 +145,8 @@ struct ContentView: View {
                             Label("Clear History", systemImage: "trash")
                         }
                     } label: {
-                        Image(systemName: "ellipsis.circle")
+                        Image(systemName: "ellipsis")
+                            .foregroundColor(.primary)
                     }
                 }
             }
@@ -152,11 +154,9 @@ struct ContentView: View {
                 audioController.requestPermissions()
                 loadHistory()
             }
-            // Text Export
             .sheet(isPresented: $isExportingText) {
                 ShareSheet(activityItems: [generateTranscriptText()])
             }
-            // Audio Export
             .sheet(isPresented: $isExportingAudio) {
                 if let url = audioController.currentFileURL {
                     ShareSheet(activityItems: [url])
@@ -164,7 +164,6 @@ struct ContentView: View {
                     Text("No audio recorded yet.")
                 }
             }
-            // Apple Native Translation API
             .translationTask(configuration) { session in
                 do {
                     for await _ in NotificationCenter.default.notifications(named: NSNotification.Name("FinalTranscriptReady")) {
@@ -250,7 +249,6 @@ struct ContentView: View {
     }
 }
 
-// SwiftUI wrapper for UIActivityViewController (Share Sheet)
 struct ShareSheet: UIViewControllerRepresentable {
     var activityItems: [Any]
     
@@ -262,68 +260,57 @@ struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
+// Flat, subtle UI for completed translations
 struct SegmentView: View {
     let segment: TranslationSegment
     let onPlay: () -> Void
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
+            // Source Text (Smaller, subdued)
             Text(segment.sourceText)
-                .font(.title3)
-                .fontWeight(.medium)
-                .foregroundColor(.primary)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
             
-            Divider()
-            
-            HStack(alignment: .bottom) {
+            // Translated Text (Large, prominent)
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(segment.translatedText)
-                    .font(.body)
-                    .foregroundColor(.blue)
-                
-                Spacer()
+                    .font(.title2)
+                    .fontWeight(.medium)
+                    .foregroundColor(.primary)
                 
                 Button(action: onPlay) {
-                    Image(systemName: "speaker.wave.2.circle.fill")
-                        .resizable()
-                        .frame(width: 28, height: 28)
+                    Image(systemName: "speaker.wave.2")
+                        .font(.body)
                         .foregroundColor(.blue)
                 }
             }
         }
-        .padding()
-        .background(Color(UIColor.secondarySystemGroupedBackground))
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
+// Flat, subtle UI for live listening
 struct LiveSegmentView: View {
     let text: String
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
                 Circle()
                     .fill(Color.red)
-                    .frame(width: 8, height: 8)
-                Text("Listening...")
+                    .frame(width: 6, height: 6)
+                Text("Listening")
                     .font(.caption)
-                    .fontWeight(.bold)
-                    .foregroundColor(.red)
+                    .textCase(.uppercase)
+                    .foregroundColor(.secondary)
             }
             
             Text(text)
-                .font(.title3)
-                .fontWeight(.medium)
+                .font(.subheadline)
                 .foregroundColor(.primary)
+                .opacity(0.8)
         }
-        .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(UIColor.secondarySystemGroupedBackground))
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.red.opacity(0.3), lineWidth: 1)
-        )
     }
 }
