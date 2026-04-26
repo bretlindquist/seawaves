@@ -6,7 +6,7 @@ struct ContentView: View {
     @State private var audioController = AudioController()
     
     // Translation States
-    @State private var targetLanguage = Locale.Language(identifier: "es")
+    @State private var targetLanguage = Locale.Language(identifier: "ko")
     @State private var sourceLanguage = Locale.Language(identifier: "en")
     @State private var configuration: TranslationSession.Configuration?
     
@@ -34,7 +34,7 @@ struct ContentView: View {
                         .font(.headline)
                     Image(systemName: "arrow.right.circle.fill")
                         .foregroundColor(.blue)
-                    Text("Spanish")
+                    Text("Korean")
                         .font(.headline)
                 }
                 .padding()
@@ -49,7 +49,7 @@ struct ContentView: View {
                         VStack(spacing: 16) {
                             ForEach(segments) { segment in
                                 SegmentView(segment: segment) {
-                                    speak(text: segment.translatedText, language: "es-ES")
+                                    speak(text: segment.translatedText, language: "ko-KR")
                                 }
                                 .id(segment.id)
                             }
