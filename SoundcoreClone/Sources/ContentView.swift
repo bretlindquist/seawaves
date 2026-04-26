@@ -4,19 +4,16 @@ import AVFoundation
 
 struct ContentView: View {
     @State private var audioController = AudioController()
+    @State private var historyManager = HistoryManager()
     
     @State private var sourceLanguage = SupportedLanguage.english
     @State private var targetLanguage = SupportedLanguage.allTargets[0]
     @State private var configuration: TranslationSession.Configuration?
     
-    @AppStorage("savedSegments") private var savedSegmentsData: Data = Data()
-    @State private var segments: [TranslationSegment] = []
-    
-    @State private var isExportingText = false
-    @State private var isExportingAudio = false
+    // Current active session
+    @State private var currentSession: TranslationSessionModel?
     
     @State private var liveTranslatedText: String = ""
-    
     private let synthesizer = AVSpeechSynthesizer()
     
     var body: some View {
@@ -55,11 +52,13 @@ struct ContentView: View {
                 ScrollViewReader { proxy in
                     ScrollView {
                         VStack(spacing: 24) {
-                            ForEach(segments) { segment in
-                                SegmentView(segment: segment) {
-                                    speak(text: segment.translatedText, language: targetLanguage.ttsCode)
+                            if let session = currentSession {
+                                ForEach(session.segments) { segment in
+                                    SegmentView(segment: segment) {
+                                        speak(text: segment.translatedText, language: targetLanguage.ttsCode)
+                                    }
+                                    .id(segment.id)
                                 }
-                                .id(segment.id)
                             }
                             
                             if audioController.isRecording && (!audioController.transcript.isEmpty || !liveTranslatedText.isEmpty) {
@@ -73,9 +72,8 @@ struct ContentView: View {
                         .padding(.vertical, 24)
                         .padding(.horizontal, 20)
                     }
-                    .onChange(of: segments.count) {
-                        saveHistory()
-                        if let last = segments.last {
+                    .onChange(of: currentSession?.segments.count) {
+                        if let last = currentSession?.segments.last {
                             withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
                         }
                     }
@@ -127,44 +125,21 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
                 .background(Color(UIColor.systemBackground).ignoresSafeArea(edges: .bottom))
             }
-            .navigationTitle("Translate")
+            .navigationTitle("Interpreter")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button(action: { isExportingText = true }) {
-                            Label("Export Transcript", systemImage: "doc.text")
-                        }
-                        Button(action: { isExportingAudio = true }) {
-                            Label("Export Last Audio", systemImage: "waveform")
-                        }
-                        Divider()
-                        Button(role: .destructive, action: { clearHistory() }) {
-                            Label("Clear History", systemImage: "trash")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
+                    NavigationLink(destination: HistoryView(historyManager: historyManager)) {
+                        Image(systemName: "clock.arrow.circlepath")
                             .foregroundColor(.primary)
                     }
                 }
             }
             .onAppear {
                 audioController.requestPermissions()
-                loadHistory()
-            }
-            .sheet(isPresented: $isExportingText) {
-                ShareSheet(activityItems: [generateTranscriptText()])
-            }
-            .sheet(isPresented: $isExportingAudio) {
-                if let url = audioController.currentFileURL {
-                    ShareSheet(activityItems: [url])
-                } else {
-                    Text("No audio recorded yet.")
-                }
             }
             .translationTask(configuration) { session in
                 do {
-                    // Task 1: Continuous Live Stream (Morphing text)
                     let liveTask = Task {
                         for await _ in NotificationCenter.default.notifications(named: NSNotification.Name("TranscriptUpdated")) {
                             let currentText = audioController.transcript
@@ -175,13 +150,10 @@ struct ContentView: View {
                                 await MainActor.run {
                                     self.liveTranslatedText = response.targetText
                                 }
-                            } catch {
-                                // Ignore throttle errors during live typing
-                            }
+                            } catch {}
                         }
                     }
                     
-                    // Task 2: Chunk Committer (Fires automatically when a sentence ends, OR when user hits stop)
                     for await notification in NotificationCenter.default.notifications(named: NSNotification.Name("SentenceBoundaryReached")) {
                         let finalSourceText = notification.object as? String ?? audioController.transcript
                         if !finalSourceText.isEmpty {
@@ -192,7 +164,7 @@ struct ContentView: View {
                                     translatedText: response.targetText,
                                     isFinal: true
                                 )
-                                self.segments.append(newSegment)
+                                self.currentSession?.segments.append(newSegment)
                                 self.liveTranslatedText = ""
                             }
                         }
@@ -217,12 +189,23 @@ struct ContentView: View {
                 if !snapshot.isEmpty {
                     NotificationCenter.default.post(name: NSNotification.Name("SentenceBoundaryReached"), object: snapshot)
                 }
+                
+                // Save the completed session to history
+                if let completedSession = currentSession, !completedSession.segments.isEmpty {
+                    historyManager.addSession(completedSession)
+                }
             } else {
                 do {
                     self.liveTranslatedText = ""
                     let srcLocale = Locale.Language(identifier: sourceLanguage.id)
                     let tgtLocale = Locale.Language(identifier: targetLanguage.id)
                     configuration = TranslationSession.Configuration(source: srcLocale, target: tgtLocale)
+                    
+                    // Start a new session
+                    self.currentSession = TranslationSessionModel(
+                        sourceLanguageName: sourceLanguage.displayName,
+                        targetLanguageName: targetLanguage.displayName
+                    )
                     
                     try await audioController.startRecording()
                 } catch {
@@ -238,73 +221,18 @@ struct ContentView: View {
         utterance.rate = 0.5
         synthesizer.speak(utterance)
     }
-    
-    private func saveHistory() {
-        let currentSegments = segments
-        Task.detached(priority: .background) {
-            if let encoded = try? JSONEncoder().encode(currentSegments) {
-                await MainActor.run {
-                    savedSegmentsData = encoded
-                }
-            }
-        }
-    }
-    
-    private func loadHistory() {
-        if let decoded = try? JSONDecoder().decode([TranslationSegment].self, from: savedSegmentsData) {
-            segments = decoded
-        }
-    }
-    
-    private func clearHistory() {
-        segments.removeAll()
-        savedSegmentsData = Data()
-    }
-    
-    private func generateTranscriptText() -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.timeStyle = .short
-        
-        return segments.map { segment in
-            "[\(dateFormatter.string(from: segment.timestamp))]\n" +
-            "\(sourceLanguage.displayName): \(segment.sourceText)\n" +
-            "\(targetLanguage.displayName): \(segment.translatedText)\n"
-        }.joined(separator: "\n")
-    }
 }
 
-struct ShareSheet: UIViewControllerRepresentable {
-    var activityItems: [Any]
-    
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-        return controller
-    }
-    
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}
-
+// Keep the same subtle UI components
 struct SegmentView: View {
     let segment: TranslationSegment
     let onPlay: () -> Void
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(segment.sourceText)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            
+            Text(segment.sourceText).font(.subheadline).foregroundColor(.secondary)
             HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(segment.translatedText)
-                    .font(.title2)
-                    .fontWeight(.medium)
-                    .foregroundColor(.primary)
-                
-                Button(action: onPlay) {
-                    Image(systemName: "speaker.wave.2")
-                        .font(.body)
-                        .foregroundColor(.blue)
-                }
+                Text(segment.translatedText).font(.title2).fontWeight(.medium).foregroundColor(.primary)
+                Button(action: onPlay) { Image(systemName: "speaker.wave.2").font(.body).foregroundColor(.blue) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -314,29 +242,14 @@ struct SegmentView: View {
 struct LiveSegmentView: View {
     let sourceText: String
     let translatedText: String
-    
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Circle()
-                    .fill(Color.red)
-                    .frame(width: 6, height: 6)
-                Text("Listening")
-                    .font(.caption)
-                    .textCase(.uppercase)
-                    .foregroundColor(.secondary)
+                Circle().fill(Color.red).frame(width: 6, height: 6)
+                Text("Listening").font(.caption).textCase(.uppercase).foregroundColor(.secondary)
             }
-            
-            Text(sourceText)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .opacity(0.8)
-            
-            Text(translatedText.isEmpty ? "..." : translatedText)
-                .font(.title2)
-                .fontWeight(.medium)
-                .foregroundColor(.primary)
-                .opacity(0.6)
+            Text(sourceText).font(.subheadline).foregroundColor(.secondary).opacity(0.8)
+            Text(translatedText.isEmpty ? "..." : translatedText).font(.title2).fontWeight(.medium).foregroundColor(.primary).opacity(0.6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
