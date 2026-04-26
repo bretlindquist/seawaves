@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		458182B69B3FE28618BADE07 /* AudioEngineActor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEB4926616A5B760757DBCC6 /* AudioEngineActor.swift */; };
 		506C1AA472CA7C553CDE8773 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3AFE4576A3203BD660D59E3 /* App.swift */; };
 		63BC7C63ECFC3ACE4AB74A25 /* WaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FE0BF1D569C3AC16A2E406D /* WaveformView.swift */; };
 		8E155EABC5550367889076DF /* TranslationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CACDB1128773B3259513576 /* TranslationController.swift */; };
@@ -24,6 +25,7 @@
 		AF6443C117BB73630099AF54 /* AudioController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioController.swift; sourceTree = "<group>"; };
 		C3AFE4576A3203BD660D59E3 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		CDF86D31348ACEA234E7843C /* SupportedLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportedLanguage.swift; sourceTree = "<group>"; };
+		DEB4926616A5B760757DBCC6 /* AudioEngineActor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngineActor.swift; sourceTree = "<group>"; };
 		FD1BDE1D0B3A47BB1E0E33FC /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -33,6 +35,7 @@
 			children = (
 				C3AFE4576A3203BD660D59E3 /* App.swift */,
 				AF6443C117BB73630099AF54 /* AudioController.swift */,
+				DEB4926616A5B760757DBCC6 /* AudioEngineActor.swift */,
 				FD1BDE1D0B3A47BB1E0E33FC /* ContentView.swift */,
 				CDF86D31348ACEA234E7843C /* SupportedLanguage.swift */,
 				6CACDB1128773B3259513576 /* TranslationController.swift */,
@@ -119,6 +122,7 @@
 			files = (
 				506C1AA472CA7C553CDE8773 /* App.swift in Sources */,
 				BEE34DD5EDCAF966B6703171 /* AudioController.swift in Sources */,
+				458182B69B3FE28618BADE07 /* AudioEngineActor.swift in Sources */,
 				F64B290A5A876193D7073892 /* ContentView.swift in Sources */,
 				B1DA2DD8C0252CF4A0986327 /* SupportedLanguage.swift in Sources */,
 				8E155EABC5550367889076DF /* TranslationController.swift in Sources */,

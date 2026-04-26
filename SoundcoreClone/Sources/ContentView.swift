@@ -5,24 +5,17 @@ import AVFoundation
 struct ContentView: View {
     @State private var audioController = AudioController()
     
-    // Translation States
     @State private var sourceLanguage = SupportedLanguage.english
     @State private var targetLanguage = SupportedLanguage.allTargets[0]
     @State private var configuration: TranslationSession.Configuration?
     
-    // Persistence
     @AppStorage("savedSegments") private var savedSegmentsData: Data = Data()
     @State private var segments: [TranslationSegment] = []
     
-    // Export States
     @State private var isExportingText = false
     @State private var isExportingAudio = false
     
-    // TTS
     private let synthesizer = AVSpeechSynthesizer()
-    
-    // Debouncer for live translation
-    @State private var translationTask: Task<Void, Never>?
     
     var body: some View {
         NavigationStack {
@@ -35,7 +28,6 @@ struct ContentView: View {
                     .padding()
                 }
                 
-                // Minimal Header
                 HStack(spacing: 12) {
                     Text(sourceLanguage.displayName)
                         .font(.subheadline)
@@ -58,7 +50,6 @@ struct ContentView: View {
                 
                 Divider()
                 
-                // Flat Chat Timeline
                 ScrollViewReader { proxy in
                     ScrollView {
                         VStack(spacing: 24) {
@@ -88,7 +79,6 @@ struct ContentView: View {
                     }
                 }
                 
-                // Control Bar (Bottom)
                 VStack(spacing: 0) {
                     if let errorMessage = audioController.errorMessage {
                         Text(errorMessage)
@@ -167,19 +157,17 @@ struct ContentView: View {
                     Text("No audio recorded yet.")
                 }
             }
-            // Translation Session is pre-warmed when recording starts
+            // Explicit trigger for translating the final chunk
             .translationTask(configuration) { session in
                 do {
-                    // We only translate when the user stops speaking (button pressed)
-                    // Trying to translate on every partial transcript chunk via the native TranslationSession 
-                    // causes massive UI stutter and API throttling.
                     for await _ in NotificationCenter.default.notifications(named: NSNotification.Name("FinalTranscriptReady")) {
-                        let currentText = audioController.transcript
-                        if !currentText.isEmpty {
-                            let response = try await session.translate(currentText)
+                        let finalSourceText = audioController.transcript
+                        if !finalSourceText.isEmpty {
+                            // Run the native translation asynchronously 
+                            let response = try await session.translate(finalSourceText)
                             await MainActor.run {
                                 let newSegment = TranslationSegment(
-                                    sourceText: currentText,
+                                    sourceText: finalSourceText,
                                     translatedText: response.targetText,
                                     isFinal: true
                                 )
@@ -200,21 +188,26 @@ struct ContentView: View {
         let impact = UIImpactFeedbackGenerator(style: .medium)
         impact.impactOccurred()
         
-        if audioController.isRecording {
-            audioController.stopRecording()
-            if !audioController.transcript.isEmpty {
-                NotificationCenter.default.post(name: NSNotification.Name("FinalTranscriptReady"), object: nil)
-            }
-        } else {
-            do {
-                // Pre-warm the translation configuration
-                let srcLocale = Locale.Language(identifier: sourceLanguage.id)
-                let tgtLocale = Locale.Language(identifier: targetLanguage.id)
-                configuration = TranslationSession.Configuration(source: srcLocale, target: tgtLocale)
+        Task {
+            if audioController.isRecording {
+                // Signal UI to stop instantly
+                let snapshot = audioController.transcript
+                await audioController.stopRecording()
                 
-                try audioController.startRecording()
-            } catch {
-                audioController.errorMessage = error.localizedDescription
+                if !snapshot.isEmpty {
+                    // Fire the translation layer for the snapshot
+                    NotificationCenter.default.post(name: NSNotification.Name("FinalTranscriptReady"), object: nil)
+                }
+            } else {
+                do {
+                    let srcLocale = Locale.Language(identifier: sourceLanguage.id)
+                    let tgtLocale = Locale.Language(identifier: targetLanguage.id)
+                    configuration = TranslationSession.Configuration(source: srcLocale, target: tgtLocale)
+                    
+                    try await audioController.startRecording()
+                } catch {
+                    audioController.errorMessage = error.localizedDescription
+                }
             }
         }
     }
@@ -229,8 +222,14 @@ struct ContentView: View {
     // MARK: - Persistence & Export
     
     private func saveHistory() {
-        if let encoded = try? JSONEncoder().encode(segments) {
-            savedSegmentsData = encoded
+        // Run JSON encoding in a detached task to avoid blocking the main thread during heavy chat logs
+        let currentSegments = segments
+        Task.detached(priority: .background) {
+            if let encoded = try? JSONEncoder().encode(currentSegments) {
+                await MainActor.run {
+                    savedSegmentsData = encoded
+                }
+            }
         }
     }
     
