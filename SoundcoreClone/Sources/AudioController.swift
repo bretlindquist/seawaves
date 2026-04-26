@@ -51,7 +51,6 @@ class AudioController {
         self.errorMessage = nil
         
         let documentURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        // Change file extension from .caf to .m4a to match the AAC encoding
         let fileURL = documentURL.appendingPathComponent("recording-\(Int(Date().timeIntervalSince1970)).m4a")
         self.currentFileURL = fileURL
         
@@ -61,6 +60,20 @@ class AudioController {
         listeningTask = Task {
             for await liveTranscript in stream {
                 self.transcript = liveTranscript
+                
+                // Sentence Boundary Detection
+                // If the engine naturally adds terminal punctuation, we trigger a chunk flush.
+                if liveTranscript.hasSuffix(".") || liveTranscript.hasSuffix("?") || liveTranscript.hasSuffix("!") {
+                    // Tell ContentView to commit this chunk
+                    NotificationCenter.default.post(name: NSNotification.Name("SentenceBoundaryReached"), object: liveTranscript)
+                    
+                    // Clear local transcript and ask the actor to flush its STT buffer
+                    self.transcript = ""
+                    await engineActor.flushSTTBuffer()
+                } else {
+                    // Just an update, let ContentView translate the live fragment
+                    NotificationCenter.default.post(name: NSNotification.Name("TranscriptUpdated"), object: nil)
+                }
             }
         }
     }

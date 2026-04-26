@@ -28,6 +28,9 @@ actor AudioEngineActor {
         guard let request = recognitionRequest else { fatalError("Unable to create request") }
         
         request.shouldReportPartialResults = true
+        // Add punctuation so we can use it for sentence boundary detection
+        request.addsPunctuation = true
+        
         if speechRecognizer?.supportsOnDeviceRecognition == true {
             request.requiresOnDeviceRecognition = true
         }
@@ -77,28 +80,43 @@ actor AudioEngineActor {
     }
     
     func stopRecording() {
-        // Stop the engine and remove the tap
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
         
-        // Explicitly tear down the STT pipelines
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
         
-        // Close the file writer to flush the final AAC bytes to disk
         audioFile = nil
-        
-        // Close the AsyncStream
         transcriptContinuation?.finish()
         transcriptContinuation = nil
         
-        // EXTREME BATTERY OPTIMIZATION:
-        // Explicitly deactivate the audio session and tell the OS to drop the hardware locks.
-        // This allows the iPhone to instantly spin down the audio silicon and save battery.
-        do {
-            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-        } catch {
-            logger.warning("Failed to cleanly deactivate audio session: \(error.localizedDescription)")
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+    
+    // Allows the UI to forcefully flush the current STT buffer when a sentence boundary is reached
+    // so the recognizer starts fresh for the next sentence without breaking the audio tap.
+    func flushSTTBuffer() {
+        recognitionRequest?.endAudio()
+        recognitionTask?.cancel()
+        
+        let inputNode = audioEngine.inputNode
+        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+        guard let request = recognitionRequest else { return }
+        request.shouldReportPartialResults = true
+        request.addsPunctuation = true
+        if speechRecognizer?.supportsOnDeviceRecognition == true {
+            request.requiresOnDeviceRecognition = true
         }
+        
+        recognitionTask = speechRecognizer?.recognitionTask(with: request) { [weak self] result, error in
+            guard let self = self else { return }
+            if let result = result {
+                Task { await self.yieldTranscript(result.bestTranscription.formattedString) }
+            }
+        }
+    }
+    
+    private func yieldTranscript(_ text: String) {
+        transcriptContinuation?.yield(text)
     }
 }

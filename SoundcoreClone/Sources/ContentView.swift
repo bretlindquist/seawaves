@@ -15,7 +15,6 @@ struct ContentView: View {
     @State private var isExportingText = false
     @State private var isExportingAudio = false
     
-    // Live continuous translation
     @State private var liveTranslatedText: String = ""
     
     private let synthesizer = AVSpeechSynthesizer()
@@ -63,7 +62,6 @@ struct ContentView: View {
                                 .id(segment.id)
                             }
                             
-                            // While recording, show BOTH the live source and the live target translation
                             if audioController.isRecording && (!audioController.transcript.isEmpty || !liveTranslatedText.isEmpty) {
                                 LiveSegmentView(
                                     sourceText: audioController.transcript,
@@ -166,7 +164,7 @@ struct ContentView: View {
             }
             .translationTask(configuration) { session in
                 do {
-                    // Task to handle LIVE streaming translation as words come in
+                    // Task 1: Continuous Live Stream (Morphing text)
                     let liveTask = Task {
                         for await _ in NotificationCenter.default.notifications(named: NSNotification.Name("TranscriptUpdated")) {
                             let currentText = audioController.transcript
@@ -183,9 +181,9 @@ struct ContentView: View {
                         }
                     }
                     
-                    // Task to handle the FINAL translation when stopped
-                    for await _ in NotificationCenter.default.notifications(named: NSNotification.Name("FinalTranscriptReady")) {
-                        let finalSourceText = audioController.transcript
+                    // Task 2: Chunk Committer (Fires automatically when a sentence ends, OR when user hits stop)
+                    for await notification in NotificationCenter.default.notifications(named: NSNotification.Name("SentenceBoundaryReached")) {
+                        let finalSourceText = notification.object as? String ?? audioController.transcript
                         if !finalSourceText.isEmpty {
                             let response = try await session.translate(finalSourceText)
                             await MainActor.run {
@@ -195,7 +193,7 @@ struct ContentView: View {
                                     isFinal: true
                                 )
                                 self.segments.append(newSegment)
-                                self.liveTranslatedText = "" // Clear live state
+                                self.liveTranslatedText = ""
                             }
                         }
                     }
@@ -207,8 +205,6 @@ struct ContentView: View {
         }
     }
     
-    // MARK: - Actions
-    
     private func toggleRecording() {
         let impact = UIImpactFeedbackGenerator(style: .medium)
         impact.impactOccurred()
@@ -219,7 +215,7 @@ struct ContentView: View {
                 await audioController.stopRecording()
                 
                 if !snapshot.isEmpty {
-                    NotificationCenter.default.post(name: NSNotification.Name("FinalTranscriptReady"), object: nil)
+                    NotificationCenter.default.post(name: NSNotification.Name("SentenceBoundaryReached"), object: snapshot)
                 }
             } else {
                 do {
@@ -242,8 +238,6 @@ struct ContentView: View {
         utterance.rate = 0.5
         synthesizer.speak(utterance)
     }
-    
-    // MARK: - Persistence & Export
     
     private func saveHistory() {
         let currentSegments = segments
@@ -333,13 +327,11 @@ struct LiveSegmentView: View {
                     .foregroundColor(.secondary)
             }
             
-            // Show live English
             Text(sourceText)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .opacity(0.8)
             
-            // Show live translated target
             Text(translatedText.isEmpty ? "..." : translatedText)
                 .font(.title2)
                 .fontWeight(.medium)
