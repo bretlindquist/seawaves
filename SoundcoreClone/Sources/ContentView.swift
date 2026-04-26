@@ -32,14 +32,13 @@ struct ContentView: View {
                 HStack(spacing: 16) {
                     Text("English")
                         .font(.headline)
-                        .foregroundColor(.primary)
                     Image(systemName: "arrow.right.circle.fill")
                         .foregroundColor(.blue)
                     Text("Spanish")
                         .font(.headline)
-                        .foregroundColor(.primary)
                 }
                 .padding()
+                .frame(maxWidth: .infinity)
                 .background(Color(UIColor.secondarySystemBackground))
                 
                 Divider()
@@ -73,34 +72,51 @@ struct ContentView: View {
                     }
                 }
                 
-                // Control Bar
-                VStack(spacing: 12) {
+                // Control Bar (Bottom)
+                VStack(spacing: 0) {
                     if let errorMessage = audioController.errorMessage {
                         Text(errorMessage)
                             .foregroundColor(.red)
                             .font(.caption)
+                            .padding(.bottom, 8)
                     }
                     
                     Button(action: {
                         toggleRecording()
                     }) {
                         ZStack {
-                            Circle()
-                                .fill(audioController.isRecording ? Color.red.opacity(0.1) : Color.blue.opacity(0.1))
-                                .frame(width: 80, height: 80)
+                            // Waveform background when recording
+                            if audioController.isRecording {
+                                WaveformView(isRecording: true)
+                                    .frame(width: 120, height: 80)
+                                    .opacity(0.3)
+                            }
                             
-                            Image(systemName: audioController.isRecording ? "stop.fill" : "mic.fill")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 32, height: 32)
-                                .foregroundColor(audioController.isRecording ? .red : .blue)
+                            // Classic Record Button
+                            ZStack {
+                                Circle()
+                                    .stroke(audioController.isRecording ? Color.red : Color.primary.opacity(0.3), lineWidth: 4)
+                                    .frame(width: 72, height: 72)
+                                
+                                if audioController.isRecording {
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Color.red)
+                                        .frame(width: 28, height: 28)
+                                } else {
+                                    Circle()
+                                        .fill(Color.red)
+                                        .frame(width: 60, height: 60)
+                                }
+                            }
                         }
+                        .frame(height: 100)
                     }
                     .disabled(!audioController.permissionsGranted)
-                    .padding(.vertical, 16)
+                    .padding(.bottom, 24)
+                    .padding(.top, 16)
                 }
                 .frame(maxWidth: .infinity)
-                .background(Color(UIColor.systemBackground).shadow(radius: 2, y: -2))
+                .background(Color(UIColor.systemBackground).shadow(color: .black.opacity(0.1), radius: 10, y: -5))
             }
             .navigationTitle("Live Interpreter")
             .navigationBarTitleDisplayMode(.inline)
@@ -121,9 +137,6 @@ struct ContentView: View {
                                     isFinal: true
                                 )
                                 self.segments.append(newSegment)
-                                
-                                // Optional: Auto-speak translation
-                                // speak(text: response.targetText, language: "es-ES")
                             }
                         }
                     }
@@ -135,9 +148,12 @@ struct ContentView: View {
     }
     
     private func toggleRecording() {
+        // Haptic feedback for the button
+        let impact = UIImpactFeedbackGenerator(style: .medium)
+        impact.impactOccurred()
+        
         if audioController.isRecording {
             audioController.stopRecording()
-            // Fire translation for the final chunk of speech
             if !audioController.transcript.isEmpty {
                 NotificationCenter.default.post(name: NSNotification.Name("FinalTranscriptReady"), object: nil)
             }
@@ -154,42 +170,47 @@ struct ContentView: View {
     private func speak(text: String, language: String) {
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: language)
-        utterance.rate = 0.5 // Natural reading speed
+        utterance.rate = 0.5
         synthesizer.speak(utterance)
     }
 }
 
 // UI Component for completed translations
+// Shows Source Text on top, Translated Text below it
 struct SegmentView: View {
     let segment: TranslationSegment
     let onPlay: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // Top: Original Language (Larger, primary color)
             Text(segment.sourceText)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(.title3)
+                .fontWeight(.medium)
+                .foregroundColor(.primary)
             
-            HStack {
+            Divider()
+            
+            // Bottom: Translated Language (Slightly smaller, tinted)
+            HStack(alignment: .bottom) {
                 Text(segment.translatedText)
                     .font(.body)
-                    .foregroundColor(.primary)
+                    .foregroundColor(.blue)
                 
                 Spacer()
                 
                 Button(action: onPlay) {
-                    Image(systemName: "speaker.wave.2.fill")
+                    Image(systemName: "speaker.wave.2.circle.fill")
+                        .resizable()
+                        .frame(width: 28, height: 28)
                         .foregroundColor(.blue)
-                        .padding(8)
-                        .background(Color.blue.opacity(0.1))
-                        .clipShape(Circle())
                 }
             }
         }
         .padding()
         .background(Color(UIColor.secondarySystemGroupedBackground))
         .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 2, y: 1)
+        .shadow(color: Color.black.opacity(0.05), radius: 4, y: 2)
     }
 }
 
@@ -199,22 +220,28 @@ struct LiveSegmentView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Listening...")
-                .font(.caption)
-                .fontWeight(.bold)
-                .foregroundColor(.blue)
+            HStack {
+                Circle()
+                    .fill(Color.red)
+                    .frame(width: 8, height: 8)
+                Text("Listening...")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.red)
+            }
             
             Text(text)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(.title3)
+                .fontWeight(.medium)
+                .foregroundColor(.primary)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.blue.opacity(0.05))
+        .background(Color(UIColor.secondarySystemGroupedBackground))
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                .stroke(Color.red.opacity(0.3), lineWidth: 1)
         )
     }
 }

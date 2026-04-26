@@ -14,9 +14,9 @@ targets:
         NSMicrophoneUsageDescription: "We need access to the microphone to record and translate your speech."
         NSSpeechRecognitionUsageDescription: "We need speech recognition to transcribe your voice."
     settings:
-      # Automatically use the connected device's base SDK (up to 18.4)
+      # Explicitly tell Xcode we want to build with its current SDK (18.2) 
+      # but allow deployment to anything newer.
+      IPHONEOS_DEPLOYMENT_TARGET: "17.4"
       SDKROOT: iphoneos
-      # Allow code signing for physical device
       CODE_SIGN_STYLE: Automatic
-      # We need a wildcard or specific team to build to device
-      DEVELOPMENT_TEAM: "" # Leaves it blank so Xcode prompts you to select yours
+      DEVELOPMENT_TEAM: ""
