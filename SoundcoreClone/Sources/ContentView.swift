@@ -6,8 +6,8 @@ struct ContentView: View {
     @State private var audioController = AudioController()
     
     // Translation States
-    @State private var targetLanguage = Locale.Language(identifier: "ko")
-    @State private var sourceLanguage = Locale.Language(identifier: "en")
+    @State private var sourceLanguage = SupportedLanguage.english
+    @State private var targetLanguage = SupportedLanguage.allTargets[0] // Defaults to Korean
     @State private var configuration: TranslationSession.Configuration?
     
     // Interpreter Timeline
@@ -30,12 +30,20 @@ struct ContentView: View {
                 
                 // Language Picker Header
                 HStack(spacing: 16) {
-                    Text("English")
+                    Text(sourceLanguage.displayName)
                         .font(.headline)
+                    
                     Image(systemName: "arrow.right.circle.fill")
                         .foregroundColor(.blue)
-                    Text("Korean")
-                        .font(.headline)
+                    
+                    Picker("Target Language", selection: $targetLanguage) {
+                        ForEach(SupportedLanguage.allTargets) { lang in
+                            Text(lang.displayName).tag(lang)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .font(.headline)
+                    .tint(.primary)
                 }
                 .padding()
                 .frame(maxWidth: .infinity)
@@ -49,7 +57,7 @@ struct ContentView: View {
                         VStack(spacing: 16) {
                             ForEach(segments) { segment in
                                 SegmentView(segment: segment) {
-                                    speak(text: segment.translatedText, language: "ko-KR")
+                                    speak(text: segment.translatedText, language: targetLanguage.ttsCode)
                                 }
                                 .id(segment.id)
                             }
@@ -148,7 +156,6 @@ struct ContentView: View {
     }
     
     private func toggleRecording() {
-        // Haptic feedback for the button
         let impact = UIImpactFeedbackGenerator(style: .medium)
         impact.impactOccurred()
         
@@ -159,7 +166,10 @@ struct ContentView: View {
             }
         } else {
             do {
-                configuration = TranslationSession.Configuration(source: sourceLanguage, target: targetLanguage)
+                let srcLocale = Locale.Language(identifier: sourceLanguage.id)
+                let tgtLocale = Locale.Language(identifier: targetLanguage.id)
+                configuration = TranslationSession.Configuration(source: srcLocale, target: tgtLocale)
+                
                 try audioController.startRecording()
             } catch {
                 audioController.errorMessage = error.localizedDescription
@@ -175,15 +185,12 @@ struct ContentView: View {
     }
 }
 
-// UI Component for completed translations
-// Shows Source Text on top, Translated Text below it
 struct SegmentView: View {
     let segment: TranslationSegment
     let onPlay: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Top: Original Language (Larger, primary color)
             Text(segment.sourceText)
                 .font(.title3)
                 .fontWeight(.medium)
@@ -191,7 +198,6 @@ struct SegmentView: View {
             
             Divider()
             
-            // Bottom: Translated Language (Slightly smaller, tinted)
             HStack(alignment: .bottom) {
                 Text(segment.translatedText)
                     .font(.body)
@@ -214,7 +220,6 @@ struct SegmentView: View {
     }
 }
 
-// UI Component for the live breathing transcript
 struct LiveSegmentView: View {
     let text: String
     
