@@ -19,7 +19,6 @@ class AudioController {
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     
-    // We make currentFileURL public so the UI can grab it to export
     var currentFileURL: URL?
     private var audioFile: AVAudioFile?
     
@@ -62,16 +61,26 @@ class AudioController {
         transcript = ""
         
         let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.record, mode: .measurement, options: .duckOthers)
+        
+        // Optimize audio session for low-latency speech recognition
+        // .measurement mode minimizes system audio processing (like AGC) which reduces buffer latency
+        // setting preferredIOBufferDuration to 0.005 (5ms) forces the hardware to deliver audio chunks faster
+        try audioSession.setCategory(.record, mode: .measurement, options: [.duckOthers, .allowBluetooth])
+        try audioSession.setPreferredIOBufferDuration(0.005) 
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         
         let inputNode = audioEngine.inputNode
         
         recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
         guard let recognitionRequest = recognitionRequest else { fatalError("Unable to create request") }
+        
         recognitionRequest.shouldReportPartialResults = true
         
-        // Ensure a fresh file for every new recording burst
+        // Force on-device recognition if available to bypass all network latency
+        if speechRecognizer?.supportsOnDeviceRecognition == true {
+            recognitionRequest.requiresOnDeviceRecognition = true
+        }
+        
         let documentURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let fileURL = documentURL.appendingPathComponent("recording-\(Int(Date().timeIntervalSince1970)).caf")
         self.currentFileURL = fileURL
@@ -90,6 +99,7 @@ class AudioController {
             }
         }
         
+        // Use a smaller buffer size (1024 frames) so the speech recognizer gets data more frequently
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, when in
             self.recognitionRequest?.append(buffer)
             do {

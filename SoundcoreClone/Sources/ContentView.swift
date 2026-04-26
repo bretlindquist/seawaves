@@ -21,6 +21,9 @@ struct ContentView: View {
     // TTS
     private let synthesizer = AVSpeechSynthesizer()
     
+    // Debouncer for live translation
+    @State private var translationTask: Task<Void, Never>?
+    
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -164,8 +167,12 @@ struct ContentView: View {
                     Text("No audio recorded yet.")
                 }
             }
+            // Translation Session is pre-warmed when recording starts
             .translationTask(configuration) { session in
                 do {
+                    // We only translate when the user stops speaking (button pressed)
+                    // Trying to translate on every partial transcript chunk via the native TranslationSession 
+                    // causes massive UI stutter and API throttling.
                     for await _ in NotificationCenter.default.notifications(named: NSNotification.Name("FinalTranscriptReady")) {
                         let currentText = audioController.transcript
                         if !currentText.isEmpty {
@@ -200,6 +207,7 @@ struct ContentView: View {
             }
         } else {
             do {
+                // Pre-warm the translation configuration
                 let srcLocale = Locale.Language(identifier: sourceLanguage.id)
                 let tgtLocale = Locale.Language(identifier: targetLanguage.id)
                 configuration = TranslationSession.Configuration(source: srcLocale, target: tgtLocale)
@@ -260,19 +268,16 @@ struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
-// Flat, subtle UI for completed translations
 struct SegmentView: View {
     let segment: TranslationSegment
     let onPlay: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Source Text (Smaller, subdued)
             Text(segment.sourceText)
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             
-            // Translated Text (Large, prominent)
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(segment.translatedText)
                     .font(.title2)
@@ -290,7 +295,6 @@ struct SegmentView: View {
     }
 }
 
-// Flat, subtle UI for live listening
 struct LiveSegmentView: View {
     let text: String
     
