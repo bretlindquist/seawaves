@@ -7,11 +7,16 @@ struct ContentView: View {
     
     // Translation States
     @State private var sourceLanguage = SupportedLanguage.english
-    @State private var targetLanguage = SupportedLanguage.allTargets[0] // Defaults to Korean
+    @State private var targetLanguage = SupportedLanguage.allTargets[0]
     @State private var configuration: TranslationSession.Configuration?
     
-    // Interpreter Timeline
+    // Persistence
+    @AppStorage("savedSegments") private var savedSegmentsData: Data = Data()
     @State private var segments: [TranslationSegment] = []
+    
+    // Export States
+    @State private var isExportingText = false
+    @State private var isExportingAudio = false
     
     // TTS
     private let synthesizer = AVSpeechSynthesizer()
@@ -19,7 +24,6 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Header Permissions
                 if !audioController.permissionsGranted {
                     Button("Grant Permissions") {
                         audioController.requestPermissions()
@@ -62,7 +66,6 @@ struct ContentView: View {
                                 .id(segment.id)
                             }
                             
-                            // Active Live Transcript
                             if audioController.isRecording && !audioController.transcript.isEmpty {
                                 LiveSegmentView(text: audioController.transcript)
                                     .id("live")
@@ -71,6 +74,7 @@ struct ContentView: View {
                         .padding()
                     }
                     .onChange(of: segments.count) {
+                        saveHistory()
                         if let last = segments.last {
                             withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
                         }
@@ -93,14 +97,12 @@ struct ContentView: View {
                         toggleRecording()
                     }) {
                         ZStack {
-                            // Waveform background when recording
                             if audioController.isRecording {
                                 WaveformView(isRecording: true)
                                     .frame(width: 120, height: 80)
                                     .opacity(0.3)
                             }
                             
-                            // Classic Record Button
                             ZStack {
                                 Circle()
                                     .stroke(audioController.isRecording ? Color.red : Color.primary.opacity(0.3), lineWidth: 4)
@@ -126,10 +128,41 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
                 .background(Color(UIColor.systemBackground).shadow(color: .black.opacity(0.1), radius: 10, y: -5))
             }
-            .navigationTitle("Live Interpreter")
+            .navigationTitle("Interpreter")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Button(action: { isExportingText = true }) {
+                            Label("Export Transcript", systemImage: "doc.text")
+                        }
+                        Button(action: { isExportingAudio = true }) {
+                            Label("Export Last Audio", systemImage: "waveform")
+                        }
+                        Divider()
+                        Button(role: .destructive, action: { clearHistory() }) {
+                            Label("Clear History", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
+            }
             .onAppear {
                 audioController.requestPermissions()
+                loadHistory()
+            }
+            // Text Export
+            .sheet(isPresented: $isExportingText) {
+                ShareSheet(activityItems: [generateTranscriptText()])
+            }
+            // Audio Export
+            .sheet(isPresented: $isExportingAudio) {
+                if let url = audioController.currentFileURL {
+                    ShareSheet(activityItems: [url])
+                } else {
+                    Text("No audio recorded yet.")
+                }
             }
             // Apple Native Translation API
             .translationTask(configuration) { session in
@@ -154,6 +187,8 @@ struct ContentView: View {
             }
         }
     }
+    
+    // MARK: - Actions
     
     private func toggleRecording() {
         let impact = UIImpactFeedbackGenerator(style: .medium)
@@ -183,6 +218,48 @@ struct ContentView: View {
         utterance.rate = 0.5
         synthesizer.speak(utterance)
     }
+    
+    // MARK: - Persistence & Export
+    
+    private func saveHistory() {
+        if let encoded = try? JSONEncoder().encode(segments) {
+            savedSegmentsData = encoded
+        }
+    }
+    
+    private func loadHistory() {
+        if let decoded = try? JSONDecoder().decode([TranslationSegment].self, from: savedSegmentsData) {
+            segments = decoded
+        }
+    }
+    
+    private func clearHistory() {
+        segments.removeAll()
+        savedSegmentsData = Data()
+    }
+    
+    private func generateTranscriptText() -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.timeStyle = .short
+        
+        return segments.map { segment in
+            "[\(dateFormatter.string(from: segment.timestamp))]\n" +
+            "\(sourceLanguage.displayName): \(segment.sourceText)\n" +
+            "\(targetLanguage.displayName): \(segment.translatedText)\n"
+        }.joined(separator: "\n")
+    }
+}
+
+// SwiftUI wrapper for UIActivityViewController (Share Sheet)
+struct ShareSheet: UIViewControllerRepresentable {
+    var activityItems: [Any]
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 struct SegmentView: View {

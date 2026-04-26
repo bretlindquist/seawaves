@@ -8,7 +8,6 @@ class AudioController {
     var isRecording = false
     var transcript: String = "" {
         didSet {
-            // Notify UI so translation can happen
             NotificationCenter.default.post(name: NSNotification.Name("TranscriptUpdated"), object: nil)
         }
     }
@@ -19,6 +18,9 @@ class AudioController {
     private var speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
+    
+    // We make currentFileURL public so the UI can grab it to export
+    var currentFileURL: URL?
     private var audioFile: AVAudioFile?
     
     let logger = Logger(subsystem: "com.example.SoundcoreClone", category: "AudioController")
@@ -55,7 +57,6 @@ class AudioController {
             return
         }
         
-        // Cancel any ongoing tasks
         recognitionTask?.cancel()
         recognitionTask = nil
         transcript = ""
@@ -68,16 +69,15 @@ class AudioController {
         
         recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
         guard let recognitionRequest = recognitionRequest else { fatalError("Unable to create request") }
-        // Keep partial results true for that live "interpreter" feel
         recognitionRequest.shouldReportPartialResults = true
         
-        // Setup file recording
+        // Ensure a fresh file for every new recording burst
         let documentURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let fileURL = documentURL.appendingPathComponent("recording-\(Date().timeIntervalSince1970).caf")
-        let format = inputNode.outputFormat(forBus: 0)
+        let fileURL = documentURL.appendingPathComponent("recording-\(Int(Date().timeIntervalSince1970)).caf")
+        self.currentFileURL = fileURL
         
+        let format = inputNode.outputFormat(forBus: 0)
         audioFile = try AVAudioFile(forWriting: fileURL, settings: format.settings)
-        logger.info("Recording to file: \(fileURL.absoluteString)")
         
         recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { result, error in
             if let result = result {
@@ -95,7 +95,7 @@ class AudioController {
             do {
                 try self.audioFile?.write(from: buffer)
             } catch {
-                self.logger.error("Error writing audio buffer to file: \(error.localizedDescription)")
+                self.logger.error("Error writing audio file: \(error.localizedDescription)")
             }
         }
         
@@ -113,7 +113,7 @@ class AudioController {
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
         
-        audioFile = nil // Closes the file
+        audioFile = nil
         
         let audioSession = AVAudioSession.sharedInstance()
         try? audioSession.setActive(false)
