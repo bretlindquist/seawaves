@@ -15,6 +15,9 @@ struct ContentView: View {
     @State private var isExportingText = false
     @State private var isExportingAudio = false
     
+    // Live continuous translation
+    @State private var liveTranslatedText: String = ""
+    
     private let synthesizer = AVSpeechSynthesizer()
     
     var body: some View {
@@ -35,7 +38,7 @@ struct ContentView: View {
                     
                     Image(systemName: "arrow.right")
                         .font(.caption)
-                        .foregroundColor(.tertiaryLabel)
+                        .foregroundColor(.secondary)
                     
                     Picker("Target Language", selection: $targetLanguage) {
                         ForEach(SupportedLanguage.allTargets) { lang in
@@ -60,9 +63,13 @@ struct ContentView: View {
                                 .id(segment.id)
                             }
                             
-                            if audioController.isRecording && !audioController.transcript.isEmpty {
-                                LiveSegmentView(text: audioController.transcript)
-                                    .id("live")
+                            // While recording, show BOTH the live source and the live target translation
+                            if audioController.isRecording && (!audioController.transcript.isEmpty || !liveTranslatedText.isEmpty) {
+                                LiveSegmentView(
+                                    sourceText: audioController.transcript,
+                                    translatedText: liveTranslatedText
+                                )
+                                .id("live")
                             }
                         }
                         .padding(.vertical, 24)
@@ -157,13 +164,29 @@ struct ContentView: View {
                     Text("No audio recorded yet.")
                 }
             }
-            // Explicit trigger for translating the final chunk
             .translationTask(configuration) { session in
                 do {
+                    // Task to handle LIVE streaming translation as words come in
+                    let liveTask = Task {
+                        for await _ in NotificationCenter.default.notifications(named: NSNotification.Name("TranscriptUpdated")) {
+                            let currentText = audioController.transcript
+                            guard !currentText.isEmpty else { continue }
+                            
+                            do {
+                                let response = try await session.translate(currentText)
+                                await MainActor.run {
+                                    self.liveTranslatedText = response.targetText
+                                }
+                            } catch {
+                                // Ignore throttle errors during live typing
+                            }
+                        }
+                    }
+                    
+                    // Task to handle the FINAL translation when stopped
                     for await _ in NotificationCenter.default.notifications(named: NSNotification.Name("FinalTranscriptReady")) {
                         let finalSourceText = audioController.transcript
                         if !finalSourceText.isEmpty {
-                            // Run the native translation asynchronously 
                             let response = try await session.translate(finalSourceText)
                             await MainActor.run {
                                 let newSegment = TranslationSegment(
@@ -172,9 +195,11 @@ struct ContentView: View {
                                     isFinal: true
                                 )
                                 self.segments.append(newSegment)
+                                self.liveTranslatedText = "" // Clear live state
                             }
                         }
                     }
+                    liveTask.cancel()
                 } catch {
                     print("Translation error: \(error)")
                 }
@@ -190,16 +215,15 @@ struct ContentView: View {
         
         Task {
             if audioController.isRecording {
-                // Signal UI to stop instantly
                 let snapshot = audioController.transcript
                 await audioController.stopRecording()
                 
                 if !snapshot.isEmpty {
-                    // Fire the translation layer for the snapshot
                     NotificationCenter.default.post(name: NSNotification.Name("FinalTranscriptReady"), object: nil)
                 }
             } else {
                 do {
+                    self.liveTranslatedText = ""
                     let srcLocale = Locale.Language(identifier: sourceLanguage.id)
                     let tgtLocale = Locale.Language(identifier: targetLanguage.id)
                     configuration = TranslationSession.Configuration(source: srcLocale, target: tgtLocale)
@@ -222,7 +246,6 @@ struct ContentView: View {
     // MARK: - Persistence & Export
     
     private func saveHistory() {
-        // Run JSON encoding in a detached task to avoid blocking the main thread during heavy chat logs
         let currentSegments = segments
         Task.detached(priority: .background) {
             if let encoded = try? JSONEncoder().encode(currentSegments) {
@@ -295,7 +318,8 @@ struct SegmentView: View {
 }
 
 struct LiveSegmentView: View {
-    let text: String
+    let sourceText: String
+    let translatedText: String
     
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -309,10 +333,18 @@ struct LiveSegmentView: View {
                     .foregroundColor(.secondary)
             }
             
-            Text(text)
+            // Show live English
+            Text(sourceText)
                 .font(.subheadline)
-                .foregroundColor(.primary)
+                .foregroundColor(.secondary)
                 .opacity(0.8)
+            
+            // Show live translated target
+            Text(translatedText.isEmpty ? "..." : translatedText)
+                .font(.title2)
+                .fontWeight(.medium)
+                .foregroundColor(.primary)
+                .opacity(0.6)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

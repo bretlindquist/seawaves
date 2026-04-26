@@ -5,7 +5,10 @@ targets:
   SoundcoreClone:
     type: application
     platform: iOS
-    deploymentTarget: "17.4"
+    # Crucial fix: The Translation API view modifier `translationTask` is actually iOS 17.4, 
+    # but TranslationSession programmatic initialization explicitly requires iOS 18.0+.
+    # Since your iPhone is on 18.4, we can safely bump the target to 18.0 to pass compilation.
+    deploymentTarget: "18.0"
     sources: [Sources]
     info:
       path: Info.plist
@@ -14,9 +17,6 @@ targets:
         NSMicrophoneUsageDescription: "We need access to the microphone to record and translate your speech."
         NSSpeechRecognitionUsageDescription: "We need speech recognition to transcribe your voice."
     settings:
-      # Explicitly tell Xcode we want to build with its current SDK (18.2) 
-      # but allow deployment to anything newer.
-      IPHONEOS_DEPLOYMENT_TARGET: "17.4"
       SDKROOT: iphoneos
       CODE_SIGN_STYLE: Automatic
       DEVELOPMENT_TEAM: ""

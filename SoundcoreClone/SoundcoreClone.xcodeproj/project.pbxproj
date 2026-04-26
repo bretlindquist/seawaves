@@ -10,7 +10,6 @@
 		458182B69B3FE28618BADE07 /* AudioEngineActor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEB4926616A5B760757DBCC6 /* AudioEngineActor.swift */; };
 		506C1AA472CA7C553CDE8773 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3AFE4576A3203BD660D59E3 /* App.swift */; };
 		63BC7C63ECFC3ACE4AB74A25 /* WaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FE0BF1D569C3AC16A2E406D /* WaveformView.swift */; };
-		8E155EABC5550367889076DF /* TranslationController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CACDB1128773B3259513576 /* TranslationController.swift */; };
 		B1DA2DD8C0252CF4A0986327 /* SupportedLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDF86D31348ACEA234E7843C /* SupportedLanguage.swift */; };
 		BEE34DD5EDCAF966B6703171 /* AudioController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF6443C117BB73630099AF54 /* AudioController.swift */; };
 		EE14F388954195EDAAB95D7C /* TranslationSegment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8236CDAC477C6CFD925CF /* TranslationSegment.swift */; };
@@ -21,7 +20,6 @@
 		16E8236CDAC477C6CFD925CF /* TranslationSegment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationSegment.swift; sourceTree = "<group>"; };
 		1FC2E53C7F53E600E44A1F80 /* SoundcoreClone.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SoundcoreClone.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5FE0BF1D569C3AC16A2E406D /* WaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformView.swift; sourceTree = "<group>"; };
-		6CACDB1128773B3259513576 /* TranslationController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationController.swift; sourceTree = "<group>"; };
 		AF6443C117BB73630099AF54 /* AudioController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioController.swift; sourceTree = "<group>"; };
 		C3AFE4576A3203BD660D59E3 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		CDF86D31348ACEA234E7843C /* SupportedLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportedLanguage.swift; sourceTree = "<group>"; };
@@ -38,7 +36,6 @@
 				DEB4926616A5B760757DBCC6 /* AudioEngineActor.swift */,
 				FD1BDE1D0B3A47BB1E0E33FC /* ContentView.swift */,
 				CDF86D31348ACEA234E7843C /* SupportedLanguage.swift */,
-				6CACDB1128773B3259513576 /* TranslationController.swift */,
 				16E8236CDAC477C6CFD925CF /* TranslationSegment.swift */,
 				5FE0BF1D569C3AC16A2E406D /* WaveformView.swift */,
 			);
@@ -125,7 +122,6 @@
 				458182B69B3FE28618BADE07 /* AudioEngineActor.swift in Sources */,
 				F64B290A5A876193D7073892 /* ContentView.swift in Sources */,
 				B1DA2DD8C0252CF4A0986327 /* SupportedLanguage.swift in Sources */,
-				8E155EABC5550367889076DF /* TranslationController.swift in Sources */,
 				EE14F388954195EDAAB95D7C /* TranslationSegment.swift in Sources */,
 				63BC7C63ECFC3ACE4AB74A25 /* WaveformView.swift in Sources */,
 			);
@@ -142,7 +138,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -223,7 +219,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.4;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
