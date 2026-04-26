@@ -8,8 +8,6 @@ actor AudioEngineActor {
     private var speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
-    
-    // We use AVAudioFile to write hardware-encoded AAC directly to disk
     private var audioFile: AVAudioFile?
     
     let logger = Logger(subsystem: "com.example.SoundcoreClone", category: "AudioEngineActor")
@@ -21,7 +19,7 @@ actor AudioEngineActor {
         
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setCategory(.record, mode: .measurement, options: [.duckOthers, .allowBluetooth])
-        try audioSession.setPreferredIOBufferDuration(0.005) // 5ms buffer
+        try audioSession.setPreferredIOBufferDuration(0.005)
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         
         let inputNode = audioEngine.inputNode
@@ -46,17 +44,14 @@ actor AudioEngineActor {
             }
         }
         
-        // Define compressed AAC (m4a) settings
-        // AAC hardware encoding uses tiny CPU and shrinks files by ~90%
         let format = inputNode.outputFormat(forBus: 0)
         let aacSettings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
             AVSampleRateKey: format.sampleRate,
-            AVNumberOfChannelsKey: 1, // Mono is fine for voice
-            AVEncoderBitRateKey: 64000 // 64kbps is excellent for speech
+            AVNumberOfChannelsKey: 1,
+            AVEncoderBitRateKey: 64000
         ]
         
-        // Ensure the file URL has the correct .m4a extension
         audioFile = try AVAudioFile(forWriting: fileURL, settings: aacSettings)
         
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, when in
@@ -75,7 +70,6 @@ actor AudioEngineActor {
     private func processBuffer(_ buffer: AVAudioPCMBuffer) {
         recognitionRequest?.append(buffer)
         do {
-            // AVAudioFile automatically converts the raw PCM buffer to AAC on the fly
             try audioFile?.write(from: buffer)
         } catch {
             logger.error("Error writing AAC audio file: \(error.localizedDescription)")
@@ -83,16 +77,28 @@ actor AudioEngineActor {
     }
     
     func stopRecording() {
+        // Stop the engine and remove the tap
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
         
+        // Explicitly tear down the STT pipelines
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
         
-        audioFile = nil // Closes the file
+        // Close the file writer to flush the final AAC bytes to disk
+        audioFile = nil
+        
+        // Close the AsyncStream
         transcriptContinuation?.finish()
         transcriptContinuation = nil
         
-        try? AVAudioSession.sharedInstance().setActive(false)
+        // EXTREME BATTERY OPTIMIZATION:
+        // Explicitly deactivate the audio session and tell the OS to drop the hardware locks.
+        // This allows the iPhone to instantly spin down the audio silicon and save battery.
+        do {
+            try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        } catch {
+            logger.warning("Failed to cleanly deactivate audio session: \(error.localizedDescription)")
+        }
     }
 }
