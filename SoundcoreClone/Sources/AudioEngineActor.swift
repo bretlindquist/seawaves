@@ -3,17 +3,16 @@ import AVFoundation
 import Speech
 import os
 
-/// Dedicated Actor to handle high-frequency audio buffer processing off the main thread
 actor AudioEngineActor {
     private let audioEngine = AVAudioEngine()
     private var speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
+    
+    // We use AVAudioFile to write hardware-encoded AAC directly to disk
     private var audioFile: AVAudioFile?
     
     let logger = Logger(subsystem: "com.example.SoundcoreClone", category: "AudioEngineActor")
-    
-    // We yield transcript updates via a continuation to avoid NotificationCenter overhead
     private var transcriptContinuation: AsyncStream<String>.Continuation?
     
     func startRecording(fileURL: URL) async throws -> AsyncStream<String> {
@@ -35,13 +34,9 @@ actor AudioEngineActor {
             request.requiresOnDeviceRecognition = true
         }
         
-        let format = inputNode.outputFormat(forBus: 0)
-        audioFile = try AVAudioFile(forWriting: fileURL, settings: format.settings)
-        
         let (stream, continuation) = AsyncStream.makeStream(of: String.self)
         self.transcriptContinuation = continuation
         
-        // Use a non-isolated task callback to handle the high frequency STT responses
         recognitionTask = speechRecognizer?.recognitionTask(with: request) { result, error in
             if let result = result {
                 continuation.yield(result.bestTranscription.formattedString)
@@ -51,9 +46,21 @@ actor AudioEngineActor {
             }
         }
         
+        // Define compressed AAC (m4a) settings
+        // AAC hardware encoding uses tiny CPU and shrinks files by ~90%
+        let format = inputNode.outputFormat(forBus: 0)
+        let aacSettings: [String: Any] = [
+            AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
+            AVSampleRateKey: format.sampleRate,
+            AVNumberOfChannelsKey: 1, // Mono is fine for voice
+            AVEncoderBitRateKey: 64000 // 64kbps is excellent for speech
+        ]
+        
+        // Ensure the file URL has the correct .m4a extension
+        audioFile = try AVAudioFile(forWriting: fileURL, settings: aacSettings)
+        
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, when in
             guard let self = self else { return }
-            // Push buffer processing to a background detached task to prevent blocking the audio tap
             Task.detached(priority: .userInitiated) {
                 await self.processBuffer(buffer)
             }
@@ -68,9 +75,10 @@ actor AudioEngineActor {
     private func processBuffer(_ buffer: AVAudioPCMBuffer) {
         recognitionRequest?.append(buffer)
         do {
+            // AVAudioFile automatically converts the raw PCM buffer to AAC on the fly
             try audioFile?.write(from: buffer)
         } catch {
-            logger.error("Error writing audio file: \(error.localizedDescription)")
+            logger.error("Error writing AAC audio file: \(error.localizedDescription)")
         }
     }
     
@@ -81,7 +89,7 @@ actor AudioEngineActor {
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
         
-        audioFile = nil
+        audioFile = nil // Closes the file
         transcriptContinuation?.finish()
         transcriptContinuation = nil
         

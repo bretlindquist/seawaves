@@ -51,14 +51,13 @@ class AudioController {
         self.errorMessage = nil
         
         let documentURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let fileURL = documentURL.appendingPathComponent("recording-\(Int(Date().timeIntervalSince1970)).caf")
+        // Change file extension from .caf to .m4a to match the AAC encoding
+        let fileURL = documentURL.appendingPathComponent("recording-\(Int(Date().timeIntervalSince1970)).m4a")
         self.currentFileURL = fileURL
         
-        // Spin up the actor and get back our high-speed AsyncStream
         let stream = try await engineActor.startRecording(fileURL: fileURL)
         self.isRecording = true
         
-        // Consume the stream safely on the MainActor to drive SwiftUI
         listeningTask = Task {
             for await liveTranscript in stream {
                 self.transcript = liveTranscript
