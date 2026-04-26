@@ -1,0 +1,22 @@
+name: SoundcoreClone
+options:
+  bundleIdPrefix: com.example
+targets:
+  SoundcoreClone:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.4"
+    sources: [Sources]
+    info:
+      path: Info.plist
+      properties:
+        UILaunchScreen: {}
+        NSMicrophoneUsageDescription: "We need access to the microphone to record and translate your speech."
+        NSSpeechRecognitionUsageDescription: "We need speech recognition to transcribe your voice."
+    settings:
+      # Automatically use the connected device's base SDK (up to 18.4)
+      SDKROOT: iphoneos
+      # Allow code signing for physical device
+      CODE_SIGN_STYLE: Automatic
+      # We need a wildcard or specific team to build to device
+      DEVELOPMENT_TEAM: "" # Leaves it blank so Xcode prompts you to select yours
