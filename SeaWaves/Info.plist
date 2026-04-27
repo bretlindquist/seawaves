@@ -23,6 +23,9 @@
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>We need speech recognition to transcribe your voice.</string>
 	<key>UILaunchScreen</key>
-	<dict/>
+	<dict>
+		<key>UIImageName</key>
+		<string>LaunchLogo</string>
+	</dict>
 </dict>
 </plist>

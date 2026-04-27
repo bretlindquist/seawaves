@@ -1,0 +1,126 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Archive" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Cancel" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Create" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Delete" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Folder Name" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Grant Permissions" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Listening" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Microphone permission denied" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Move" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Move to Folder" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Name" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "New Folder" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "No folders created yet." : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "No recent unarchived recordings." : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Original Recording" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Permissions not granted yet." : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Recent" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Remove from Folder" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Rename" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Rename Folder" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Rename Recording" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Retry Translation" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Retrying..." : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Save" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Source Language" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Speech recognition permission denied" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Speech recognition restricted or not determined" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Target Language" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Translate" : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    },
+    "Translation failed. Check language model." : {
+      "extractionState" : "manual",
+      "localizations" : { }
+    }
+  },
+  "version" : "1.0"
+}

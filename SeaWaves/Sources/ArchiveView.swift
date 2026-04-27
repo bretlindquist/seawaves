@@ -84,7 +84,14 @@ struct ArchiveView: View {
     }
     
     private func deleteSingleFolder(_ folder: TranslationFolder) {
-        // SwiftData cascade rule will automatically handle deleting child sessions
+        if let sessions = folder.sessions {
+            for session in sessions {
+                if let url = session.audioFileURL {
+                    try? FileManager.default.removeItem(at: url)
+                }
+            }
+        }
+        // SwiftData cascade rule will automatically handle deleting child sessions from the DB
         modelContext.delete(folder)
         try? modelContext.save()
     }
@@ -92,6 +99,13 @@ struct ArchiveView: View {
     private func deleteFolders(at offsets: IndexSet) {
         for index in offsets {
             let folder = folders[index]
+            if let sessions = folder.sessions {
+                for session in sessions {
+                    if let url = session.audioFileURL {
+                        try? FileManager.default.removeItem(at: url)
+                    }
+                }
+            }
             modelContext.delete(folder)
         }
         try? modelContext.save()
