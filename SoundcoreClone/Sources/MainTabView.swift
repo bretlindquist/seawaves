@@ -26,7 +26,3 @@ struct MainTabView: View {
     }
 }
 
-// Temporary stubs so the project builds while we refactor the audio engine
-struct TranslateView: View { var body: some View { Text("Translate") } }
-struct RecentHistoryView: View { var body: some View { Text("Recent") } }
-struct ArchiveView: View { var body: some View { Text("Archive") } }

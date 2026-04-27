@@ -4,11 +4,15 @@ import AVFoundation
 
 struct RecentHistoryView: View {
     @Environment(\.modelContext) private var modelContext
-    // Fetch sessions not assigned to a folder, sorted by date
+    // Fetch only sessions that are NOT assigned to a folder yet
     @Query(filter: #Predicate<TranslationSessionModel> { $0.folder == nil }, sort: \TranslationSessionModel.startTime, order: .reverse) 
     private var recentSessions: [TranslationSessionModel]
     
+    // Fetch all folders so we can move sessions into them
+    @Query(sort: \TranslationFolder.creationDate) private var folders: [TranslationFolder]
+    
     private let synthesizer = AVSpeechSynthesizer()
+    
     @State private var sessionToRename: TranslationSessionModel?
     @State private var newName: String = ""
     
@@ -16,7 +20,7 @@ struct RecentHistoryView: View {
         NavigationStack {
             List {
                 if recentSessions.isEmpty {
-                    Text("No recent recordings.")
+                    Text("No recent unarchived recordings.")
                         .foregroundColor(.secondary)
                         .listRowBackground(Color.clear)
                 }
@@ -52,7 +56,24 @@ struct RecentHistoryView: View {
                             } label: {
                                 Label("Rename", systemImage: "pencil")
                             }
-                            // Future: "Move to Folder" button here
+                            
+                            if !folders.isEmpty {
+                                Menu {
+                                    ForEach(folders) { folder in
+                                        Button(folder.name) {
+                                            moveToFolder(session: session, folder: folder)
+                                        }
+                                    }
+                                } label: {
+                                    Label("Move to Folder", systemImage: "folder")
+                                }
+                            }
+                            
+                            Button(role: .destructive) {
+                                deleteSingleSession(session)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
                         }
                     }
                 }
@@ -73,21 +94,33 @@ struct RecentHistoryView: View {
         }
     }
     
+    private func moveToFolder(session: TranslationSessionModel, folder: TranslationFolder) {
+        // SwiftData automatically handles the relationship mapping
+        session.folder = folder
+        try? modelContext.save()
+    }
+    
+    private func deleteSingleSession(_ session: TranslationSessionModel) {
+        if let url = session.audioFileURL {
+            try? FileManager.default.removeItem(at: url)
+        }
+        modelContext.delete(session)
+        try? modelContext.save()
+    }
+    
     private func deleteSessions(at offsets: IndexSet) {
         for index in offsets {
             let session = recentSessions[index]
-            
-            // Delete the physical audio file if it exists
             if let url = session.audioFileURL {
                 try? FileManager.default.removeItem(at: url)
             }
-            
             modelContext.delete(session)
         }
         try? modelContext.save()
     }
 }
 
+// Ensure the SessionDetailView is identical to the one in ArchiveView
 struct SessionDetailView: View {
     let session: TranslationSessionModel
     let synthesizer: AVSpeechSynthesizer
