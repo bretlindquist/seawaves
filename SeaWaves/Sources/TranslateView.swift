@@ -141,10 +141,16 @@ struct TranslateView: View {
             }
             // Continuous Translation Worker
             .translationTask(configuration) { session in
+                // We prepare translation in a background task so it doesn't block transcript event loops
+                Task {
+                    do {
+                        try await session.prepareTranslation()
+                    } catch {
+                        print("Prepare translation failed: \(error)")
+                    }
+                }
+                
                 do {
-                    // Ensure language models are downloaded and ready
-                    try await session.prepareTranslation()
-                    
                     // Task 1: Live stream translation (morphing text)
                     let liveTask = Task {
                         var currentTranslationTask: Task<Void, Never>?
@@ -167,35 +173,28 @@ struct TranslateView: View {
                         }
                     }
                     
-                    // Task 2: Commit chunk when VAD silence boundary is hit
+                    // Task 2: Commit chunk translation
                     let commitTask = Task {
                         for await notification in NotificationCenter.default.notifications(named: NSNotification.Name("CommitSentenceBoundary")) {
-                            guard let text = notification.object as? String, !text.isEmpty else { continue }
-                            
-                            var finalTranslation = ""
-                            do {
-                                let response = try await session.translate(text)
-                                finalTranslation = response.targetText
-                            } catch {
-                                print("Commit translation error: \(error)")
-                            }
+                            guard let segment = notification.object as? TranslationSegmentModel else { continue }
                             
                             await MainActor.run {
-                                let newSegment = TranslationSegmentModel(
-                                    timestamp: Date(),
-                                    sourceText: text,
-                                    translatedText: finalTranslation
-                                )
-                                
                                 // Haptic bump when a line drops in
                                 let impact = UIImpactFeedbackGenerator(style: .light)
                                 impact.impactOccurred()
-                                
-                                self.audioController.activeSession?.segments.append(newSegment)
-                                if self.audioController.activeSession?.cachedPreviewText == nil {
-                                    self.audioController.activeSession?.cachedPreviewText = text
-                                }
                                 self.liveTranslatedText = "" // Clear live UI for the next sentence
+                            }
+                            
+                            do {
+                                let response = try await session.translate(segment.sourceText)
+                                await MainActor.run {
+                                    segment.translatedText = response.targetText
+                                }
+                            } catch {
+                                print("Commit translation error: \(error)")
+                                await MainActor.run {
+                                    segment.translatedText = "Translation failed. Check language model."
+                                }
                             }
                         }
                     }

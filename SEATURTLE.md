@@ -33,3 +33,9 @@ Once code is added, update this file with:
 - where core domain logic lives versus UI/integration code
 - the authoritative build/lint/test commands
 - any non-obvious project-specific instructions from README/Cursor/Copilot files
+
+## Agent Behavioral Directives (Feedback)
+- **Do not be overconfident:** Validate assumptions before claiming a feature is complete or production-ready.
+- **Test rigorously against intent:** Don't just finish the task mechanically; ensure the end result actually works for the user's intended use case.
+- **Check upstream research/documentation:** If an API behaves unexpectedly (like Apple's `Translation` framework), consult the official documentation instead of guessing or hand-waving the issue away as "finicky."
+- **Focus on robustness:** Ensure architectural resilience (e.g., transcripts shouldn't disappear just because the translation API throws an error).

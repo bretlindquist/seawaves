@@ -80,8 +80,20 @@ class AudioController {
                     
                 case .sentenceBoundaryReached(let finalizedText):
                     self.liveSourceText = ""
-                    // Ping the View to finalize translation and append to SwiftData
-                    NotificationCenter.default.post(name: NSNotification.Name("CommitSentenceBoundary"), object: finalizedText)
+                    
+                    let newSegment = TranslationSegmentModel(
+                        timestamp: Date(),
+                        sourceText: finalizedText,
+                        translatedText: "Translating..."
+                    )
+                    
+                    self.activeSession?.segments.append(newSegment)
+                    if self.activeSession?.cachedPreviewText == nil {
+                        self.activeSession?.cachedPreviewText = finalizedText
+                    }
+                    
+                    // Ping the View to run translation on the newly added segment
+                    NotificationCenter.default.post(name: NSNotification.Name("CommitSentenceBoundary"), object: newSegment)
                     
                 case .audioLevelUpdated(let level):
                     // Animate the waveform
