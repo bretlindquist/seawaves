@@ -10,6 +10,7 @@
 		0404191C5CBAF34F3A44A2B3 /* WaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A844E83D1F99B36A6663C7C /* WaveformView.swift */; };
 		07051934D03C0FCD84CB690D /* TranslateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63720071919F5DE8157CC7FD /* TranslateView.swift */; };
 		078A3D7D0C5EC2638B49B385 /* DatabaseModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94FAA6ACE8C5310B2A0935F4 /* DatabaseModels.swift */; };
+		3ECC3B702090E24B2FCF2CD9 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A53B2838ECE04DCACDEE2265 /* Assets.xcassets */; };
 		424B75D6CD222C6514820628 /* RecentHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3921A1DBEEF22D4E00A2BAC /* RecentHistoryView.swift */; };
 		4DD3D1D885ADDAE82E26E459 /* AudioController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7269906130A058F3FCB57EED /* AudioController.swift */; };
 		5AEA5F9393FC9905D627931A /* AudioEngineActor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CD494757A08A4B5F1A8F1D9 /* AudioEngineActor.swift */; };
@@ -26,6 +27,7 @@
 		63720071919F5DE8157CC7FD /* TranslateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslateView.swift; sourceTree = "<group>"; };
 		7269906130A058F3FCB57EED /* AudioController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioController.swift; sourceTree = "<group>"; };
 		94FAA6ACE8C5310B2A0935F4 /* DatabaseModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseModels.swift; sourceTree = "<group>"; };
+		A53B2838ECE04DCACDEE2265 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B4086945AC029B5456B86645 /* SupportedLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportedLanguage.swift; sourceTree = "<group>"; };
 		C3921A1DBEEF22D4E00A2BAC /* RecentHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentHistoryView.swift; sourceTree = "<group>"; };
 		D6CE17D4D784DB7CAD6D3A62 /* ArchiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveView.swift; sourceTree = "<group>"; };
@@ -55,6 +57,7 @@
 			children = (
 				116DB92C639B4DDB978B2061 /* App.swift */,
 				D6CE17D4D784DB7CAD6D3A62 /* ArchiveView.swift */,
+				A53B2838ECE04DCACDEE2265 /* Assets.xcassets */,
 				7269906130A058F3FCB57EED /* AudioController.swift */,
 				1CD494757A08A4B5F1A8F1D9 /* AudioEngineActor.swift */,
 				94FAA6ACE8C5310B2A0935F4 /* DatabaseModels.swift */,
@@ -75,6 +78,7 @@
 			buildConfigurationList = 5F99E508A6BCF8D5DCFAA67F /* Build configuration list for PBXNativeTarget "SeaWaves" */;
 			buildPhases = (
 				AA819CC1FD894C36584A31CC /* Sources */,
+				E8D69EE69B45207DE687ED4D /* Resources */,
 			);
 			buildRules = (
 			);
@@ -120,6 +124,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E8D69EE69B45207DE687ED4D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3ECC3B702090E24B2FCF2CD9 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		AA819CC1FD894C36584A31CC /* Sources */ = {
