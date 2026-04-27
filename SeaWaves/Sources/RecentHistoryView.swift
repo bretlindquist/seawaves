@@ -4,17 +4,16 @@ import AVFoundation
 
 struct RecentHistoryView: View {
     @Environment(\.modelContext) private var modelContext
-    // Fetch only sessions that are NOT assigned to a folder yet
     @Query(filter: #Predicate<TranslationSessionModel> { $0.folder == nil }, sort: \TranslationSessionModel.startTime, order: .reverse) 
     private var recentSessions: [TranslationSessionModel]
     
-    // Fetch all folders so we can move sessions into them
     @Query(sort: \TranslationFolder.creationDate) private var folders: [TranslationFolder]
     
     private let synthesizer = AVSpeechSynthesizer()
     
     @State private var sessionToRename: TranslationSessionModel?
     @State private var newName: String = ""
+    @State private var sessionToMove: TranslationSessionModel?
     
     var body: some View {
         NavigationStack {
@@ -49,35 +48,32 @@ struct RecentHistoryView: View {
                                 .foregroundColor(.secondary)
                         }
                         .padding(.vertical, 4)
-                        .contextMenu {
-                            Button {
-                                sessionToRename = session
-                                newName = session.name
-                            } label: {
-                                Label("Rename", systemImage: "pencil")
-                            }
-                            
-                            if !folders.isEmpty {
-                                Menu {
-                                    ForEach(folders) { folder in
-                                        Button(folder.name) {
-                                            moveToFolder(session: session, folder: folder)
-                                        }
-                                    }
-                                } label: {
-                                    Label("Move to Folder", systemImage: "folder")
-                                }
-                            }
-                            
-                            Button(role: .destructive) {
-                                deleteSingleSession(session)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
+                    }
+                    // DELIGHTFUL UX: Native Swipe Actions
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            deleteSingleSession(session)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
                         }
+                        
+                        Button {
+                            sessionToMove = session
+                        } label: {
+                            Label("Move", systemImage: "folder")
+                        }
+                        .tint(.indigo)
+                    }
+                    .swipeActions(edge: .leading) {
+                        Button {
+                            sessionToRename = session
+                            newName = session.name
+                        } label: {
+                            Label("Rename", systemImage: "pencil")
+                        }
+                        .tint(.orange)
                     }
                 }
-                .onDelete(perform: deleteSessions)
             }
             .navigationTitle("Recent")
             .alert("Rename Recording", isPresented: .constant(sessionToRename != nil)) {
@@ -91,13 +87,25 @@ struct RecentHistoryView: View {
                     sessionToRename = nil
                 }
             }
+            .confirmationDialog("Move to Folder", isPresented: .constant(sessionToMove != nil), titleVisibility: .visible) {
+                ForEach(folders) { folder in
+                    Button(folder.name) {
+                        if let session = sessionToMove {
+                            moveToFolder(session: session, folder: folder)
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) { sessionToMove = nil }
+            }
         }
     }
     
     private func moveToFolder(session: TranslationSessionModel, folder: TranslationFolder) {
-        // SwiftData automatically handles the relationship mapping
         session.folder = folder
         try? modelContext.save()
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(.success)
+        sessionToMove = nil
     }
     
     private func deleteSingleSession(_ session: TranslationSessionModel) {
@@ -107,20 +115,8 @@ struct RecentHistoryView: View {
         modelContext.delete(session)
         try? modelContext.save()
     }
-    
-    private func deleteSessions(at offsets: IndexSet) {
-        for index in offsets {
-            let session = recentSessions[index]
-            if let url = session.audioFileURL {
-                try? FileManager.default.removeItem(at: url)
-            }
-            modelContext.delete(session)
-        }
-        try? modelContext.save()
-    }
 }
 
-// Ensure the SessionDetailView is identical to the one in ArchiveView
 struct SessionDetailView: View {
     let session: TranslationSessionModel
     let synthesizer: AVSpeechSynthesizer
