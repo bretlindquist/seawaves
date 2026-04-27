@@ -123,7 +123,7 @@ struct SessionDetailView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            LazyVStack(spacing: 24) {
                 ForEach(session.segments) { segment in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(segment.sourceText)

@@ -8,7 +8,7 @@ struct TranslateView: View {
     @State private var audioController = AudioController()
     
     @State private var sourceLanguage = SupportedLanguage.english
-    @State private var targetLanguage = SupportedLanguage.allTargets[0]
+    @State private var targetLanguage = SupportedLanguage.allLanguages[1] // Default to Korean or next language
     @State private var configuration: TranslationSession.Configuration?
     
     // Live UI State
@@ -28,16 +28,21 @@ struct TranslateView: View {
                 
                 // Minimal Header
                 HStack(spacing: 12) {
-                    Text(sourceLanguage.displayName)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    Picker("Source Language", selection: $sourceLanguage) {
+                        ForEach(SupportedLanguage.allLanguages) { lang in
+                            Text(lang.displayName).tag(lang)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .font(.subheadline)
+                    .tint(.secondary)
                     
                     Image(systemName: "arrow.right")
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
                     Picker("Target Language", selection: $targetLanguage) {
-                        ForEach(SupportedLanguage.allTargets) { lang in
+                        ForEach(SupportedLanguage.allLanguages) { lang in
                             Text(lang.displayName).tag(lang)
                         }
                     }
@@ -52,7 +57,7 @@ struct TranslateView: View {
                 // Continuous Scrolling Timeline
                 ScrollViewReader { proxy in
                     ScrollView {
-                        VStack(spacing: 24) {
+                        LazyVStack(spacing: 24) {
                             if let session = audioController.activeSession {
                                 ForEach(session.segments) { segment in
                                     SegmentView(segment: segment) {
@@ -137,38 +142,68 @@ struct TranslateView: View {
             // Continuous Translation Worker
             .translationTask(configuration) { session in
                 do {
+                    // Ensure language models are downloaded and ready
+                    try await session.prepareTranslation()
+                    
                     // Task 1: Live stream translation (morphing text)
                     let liveTask = Task {
+                        var currentTranslationTask: Task<Void, Never>?
                         for await notification in NotificationCenter.default.notifications(named: NSNotification.Name("LiveTranscriptUpdated")) {
                             guard let text = notification.object as? String, !text.isEmpty else { continue }
-                            do {
-                                let response = try await session.translate(text)
-                                await MainActor.run { self.liveTranslatedText = response.targetText }
-                            } catch {}
+                            
+                            currentTranslationTask?.cancel()
+                            currentTranslationTask = Task {
+                                do {
+                                    let response = try await session.translate(text)
+                                    if !Task.isCancelled {
+                                        await MainActor.run { self.liveTranslatedText = response.targetText }
+                                    }
+                                } catch {
+                                    if !Task.isCancelled {
+                                        print("Live translation error: \(error)")
+                                    }
+                                }
+                            }
                         }
                     }
                     
                     // Task 2: Commit chunk when VAD silence boundary is hit
-                    for await notification in NotificationCenter.default.notifications(named: NSNotification.Name("CommitSentenceBoundary")) {
-                        guard let text = notification.object as? String, !text.isEmpty else { continue }
-                        let response = try await session.translate(text)
-                        
-                        await MainActor.run {
-                            let newSegment = TranslationSegmentModel(
-                                timestamp: Date(),
-                                sourceText: text,
-                                translatedText: response.targetText
-                            )
+                    let commitTask = Task {
+                        for await notification in NotificationCenter.default.notifications(named: NSNotification.Name("CommitSentenceBoundary")) {
+                            guard let text = notification.object as? String, !text.isEmpty else { continue }
                             
-                            // Haptic bump when a line drops in
-                            let impact = UIImpactFeedbackGenerator(style: .light)
-                            impact.impactOccurred()
+                            var finalTranslation = ""
+                            do {
+                                let response = try await session.translate(text)
+                                finalTranslation = response.targetText
+                            } catch {
+                                print("Commit translation error: \(error)")
+                            }
                             
-                            self.audioController.activeSession?.segments.append(newSegment)
-                            self.liveTranslatedText = "" // Clear live UI for the next sentence
+                            await MainActor.run {
+                                let newSegment = TranslationSegmentModel(
+                                    timestamp: Date(),
+                                    sourceText: text,
+                                    translatedText: finalTranslation
+                                )
+                                
+                                // Haptic bump when a line drops in
+                                let impact = UIImpactFeedbackGenerator(style: .light)
+                                impact.impactOccurred()
+                                
+                                self.audioController.activeSession?.segments.append(newSegment)
+                                if self.audioController.activeSession?.cachedPreviewText == nil {
+                                    self.audioController.activeSession?.cachedPreviewText = text
+                                }
+                                self.liveTranslatedText = "" // Clear live UI for the next sentence
+                            }
                         }
                     }
+                    
+                    // Keep the task alive and clean up on cancellation
+                    try? await Task.sleep(nanoseconds: UInt64.max)
                     liveTask.cancel()
+                    commitTask.cancel()
                 } catch {
                     print("Translation task error: \(error)")
                 }
@@ -188,6 +223,7 @@ struct TranslateView: View {
                     self.liveTranslatedText = ""
                     let srcLocale = Locale.Language(identifier: sourceLanguage.id)
                     let tgtLocale = Locale.Language(identifier: targetLanguage.id)
+                    
                     configuration = TranslationSession.Configuration(source: srcLocale, target: tgtLocale)
                     
                     // Create a new SwiftData session
@@ -198,7 +234,7 @@ struct TranslateView: View {
                     )
                     modelContext.insert(newSession)
                     
-                    try await audioController.startRecording(session: newSession)
+                    try await audioController.startRecording(session: newSession, localeIdentifier: sourceLanguage.localeIdentifier)
                 } catch {
                     audioController.errorMessage = error.localizedDescription
                 }

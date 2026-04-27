@@ -51,7 +51,7 @@ class AudioController {
         }
     }
     
-    func startRecording(session: TranslationSessionModel) async throws {
+    func startRecording(session: TranslationSessionModel, localeIdentifier: String) async throws {
         guard permissionsGranted else {
             errorMessage = "Permissions not granted yet."
             return
@@ -67,7 +67,7 @@ class AudioController {
         let fileURL = documentURL.appendingPathComponent("recording-\(Int(Date().timeIntervalSince1970)).m4a")
         session.audioFileURL = fileURL
         
-        let stream = try await engineActor.startRecording(fileURL: fileURL)
+        let stream = try await engineActor.startRecording(fileURL: fileURL, localeIdentifier: localeIdentifier)
         self.isRecording = true
         
         listeningTask = Task {

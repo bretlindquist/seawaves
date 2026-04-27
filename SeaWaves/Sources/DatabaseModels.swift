@@ -30,6 +30,7 @@ final class TranslationSessionModel {
     var segments: [TranslationSegmentModel]
     
     var folder: TranslationFolder?
+    var cachedPreviewText: String?
     
     init(name: String = "New Recording", startTime: Date = Date(), sourceLanguageCode: String, targetLanguageCode: String, audioFileURL: URL? = nil) {
         self.id = UUID()
@@ -42,7 +43,8 @@ final class TranslationSessionModel {
     }
     
     var previewText: String {
-        segments.first?.sourceText ?? "Empty Session"
+        if let cachedPreviewText { return cachedPreviewText }
+        return segments.first?.sourceText ?? "Empty Session"
     }
 }
 

@@ -12,7 +12,7 @@ enum AudioEngineEvent {
 
 actor AudioEngineActor {
     private let audioEngine = AVAudioEngine()
-    private var speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
+    private var speechRecognizer: SFSpeechRecognizer?
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var audioFile: AVAudioFile?
@@ -28,7 +28,9 @@ actor AudioEngineActor {
     let logger = Logger(subsystem: "com.example.SeaWaves", category: "AudioEngineActor")
     private var eventContinuation: AsyncStream<AudioEngineEvent>.Continuation?
     
-    func startRecording(fileURL: URL) async throws -> AsyncStream<AudioEngineEvent> {
+    func startRecording(fileURL: URL, localeIdentifier: String) async throws -> AsyncStream<AudioEngineEvent> {
+        self.speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: localeIdentifier))
+        
         recognitionTask?.cancel()
         recognitionTask = nil
         debounceTask?.cancel()
@@ -93,12 +95,21 @@ actor AudioEngineActor {
             currentLiveTranscript = newText
             eventContinuation?.yield(.liveTranscriptUpdated(newText))
             
+            // Check if the engine has finalized a sentence with punctuation
+            let terminators: Set<Character> = [".", "?", "!", "。", "？", "！"]
+            let trimmed = newText.trimmingCharacters(in: .whitespaces)
+            let hasTerminalPunctuation = trimmed.last.map { terminators.contains($0) } ?? false
+            
+            // If we have punctuation, aggressively commit after a tiny pause (0.3s)
+            // Otherwise wait for the normal silence threshold (1.2s)
+            let delay = hasTerminalPunctuation ? 0.3 : silenceThreshold
+            
             // Reset the silence debounce timer
             debounceTask?.cancel()
             debounceTask = Task {
                 do {
-                    // Wait for the silence threshold
-                    try await Task.sleep(nanoseconds: UInt64(silenceThreshold * 1_000_000_000))
+                    // Wait for the dynamic threshold
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
                     // If we haven't been cancelled by a new word, flush the chunk!
                     await self.flushAndReset()
                 } catch {
