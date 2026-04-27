@@ -1,0 +1,19 @@
+name: SeaWaves
+options:
+  bundleIdPrefix: com.example
+targets:
+  SeaWaves:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources: [Sources]
+    info:
+      path: Info.plist
+      properties:
+        UILaunchScreen: {}
+        NSMicrophoneUsageDescription: "We need access to the microphone to record and translate your speech."
+        NSSpeechRecognitionUsageDescription: "We need speech recognition to transcribe your voice."
+    settings:
+      SDKROOT: iphoneos
+      CODE_SIGN_STYLE: Automatic
+      DEVELOPMENT_TEAM: ""
