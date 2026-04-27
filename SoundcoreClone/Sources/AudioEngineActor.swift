@@ -3,6 +3,13 @@ import AVFoundation
 import Speech
 import os
 
+/// Event types emitted by the Audio Engine
+enum AudioEngineEvent {
+    case liveTranscriptUpdated(String)
+    case sentenceBoundaryReached(String)
+    case audioLevelUpdated(Float) // Used to drive the reactive waveform UI
+}
+
 actor AudioEngineActor {
     private let audioEngine = AVAudioEngine()
     private var speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
@@ -10,12 +17,21 @@ actor AudioEngineActor {
     private var recognitionTask: SFSpeechRecognitionTask?
     private var audioFile: AVAudioFile?
     
-    let logger = Logger(subsystem: "com.example.SoundcoreClone", category: "AudioEngineActor")
-    private var transcriptContinuation: AsyncStream<String>.Continuation?
+    // Silence Debounce / VAD parameters
+    private var lastTranscriptUpdate: Date = Date()
+    private var debounceTask: Task<Void, Never>?
+    private let silenceThreshold: TimeInterval = 1.2 // 1.2 seconds of silence triggers a boundary
     
-    func startRecording(fileURL: URL) async throws -> AsyncStream<String> {
+    // State
+    private var currentLiveTranscript: String = ""
+    
+    let logger = Logger(subsystem: "com.example.SoundcoreClone", category: "AudioEngineActor")
+    private var eventContinuation: AsyncStream<AudioEngineEvent>.Continuation?
+    
+    func startRecording(fileURL: URL) async throws -> AsyncStream<AudioEngineEvent> {
         recognitionTask?.cancel()
         recognitionTask = nil
+        debounceTask?.cancel()
         
         let audioSession = AVAudioSession.sharedInstance()
         try audioSession.setCategory(.record, mode: .measurement, options: [.duckOthers, .allowBluetooth])
@@ -28,22 +44,22 @@ actor AudioEngineActor {
         guard let request = recognitionRequest else { fatalError("Unable to create request") }
         
         request.shouldReportPartialResults = true
-        // Add punctuation so we can use it for sentence boundary detection
-        request.addsPunctuation = true
-        
+        // We explicitly DO NOT rely on addsPunctuation to dictate boundaries anymore.
+        request.addsPunctuation = true 
         if speechRecognizer?.supportsOnDeviceRecognition == true {
             request.requiresOnDeviceRecognition = true
         }
         
-        let (stream, continuation) = AsyncStream.makeStream(of: String.self)
-        self.transcriptContinuation = continuation
+        let (stream, continuation) = AsyncStream.makeStream(of: AudioEngineEvent.self)
+        self.eventContinuation = continuation
         
-        recognitionTask = speechRecognizer?.recognitionTask(with: request) { result, error in
+        recognitionTask = speechRecognizer?.recognitionTask(with: request) { [weak self] result, error in
+            guard let self = self else { return }
             if let result = result {
-                continuation.yield(result.bestTranscription.formattedString)
+                Task { await self.handleSTTResult(result.bestTranscription.formattedString) }
             }
             if error != nil {
-                continuation.finish()
+                Task { await self.flushAndReset() }
             }
         }
         
@@ -70,32 +86,37 @@ actor AudioEngineActor {
         return stream
     }
     
-    private func processBuffer(_ buffer: AVAudioPCMBuffer) {
-        recognitionRequest?.append(buffer)
-        do {
-            try audioFile?.write(from: buffer)
-        } catch {
-            logger.error("Error writing AAC audio file: \(error.localizedDescription)")
+    private func handleSTTResult(_ newText: String) {
+        // If the text hasn't actually grown/changed, don't reset the silence timer.
+        // This prevents the engine from keeping a line open just because it's "thinking".
+        if newText != currentLiveTranscript {
+            currentLiveTranscript = newText
+            eventContinuation?.yield(.liveTranscriptUpdated(newText))
+            
+            // Reset the silence debounce timer
+            debounceTask?.cancel()
+            debounceTask = Task {
+                do {
+                    // Wait for the silence threshold
+                    try await Task.sleep(nanoseconds: UInt64(silenceThreshold * 1_000_000_000))
+                    // If we haven't been cancelled by a new word, flush the chunk!
+                    await self.flushAndReset()
+                } catch {
+                    // Task cancelled due to new speech, do nothing
+                }
+            }
         }
     }
     
-    func stopRecording() {
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
+    private func flushAndReset() {
+        guard !currentLiveTranscript.isEmpty else { return }
         
-        recognitionRequest?.endAudio()
-        recognitionTask?.cancel()
+        // 1. Commit the sentence
+        let finalizedText = currentLiveTranscript
+        eventContinuation?.yield(.sentenceBoundaryReached(finalizedText))
+        currentLiveTranscript = ""
         
-        audioFile = nil
-        transcriptContinuation?.finish()
-        transcriptContinuation = nil
-        
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
-    }
-    
-    // Allows the UI to forcefully flush the current STT buffer when a sentence boundary is reached
-    // so the recognizer starts fresh for the next sentence without breaking the audio tap.
-    func flushSTTBuffer() {
+        // 2. Restart the STT engine so the next word starts a brand new string
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()
         
@@ -111,12 +132,50 @@ actor AudioEngineActor {
         recognitionTask = speechRecognizer?.recognitionTask(with: request) { [weak self] result, error in
             guard let self = self else { return }
             if let result = result {
-                Task { await self.yieldTranscript(result.bestTranscription.formattedString) }
+                Task { await self.handleSTTResult(result.bestTranscription.formattedString) }
             }
         }
     }
     
-    private func yieldTranscript(_ text: String) {
-        transcriptContinuation?.yield(text)
+    private func processBuffer(_ buffer: AVAudioPCMBuffer) {
+        recognitionRequest?.append(buffer)
+        do {
+            try audioFile?.write(from: buffer)
+        } catch {
+            logger.error("Error writing AAC audio file: \(error.localizedDescription)")
+        }
+        
+        // Calculate RMS for the live waveform UI
+        if let channelData = buffer.floatChannelData?[0] {
+            let frames = buffer.frameLength
+            var sum: Float = 0.0
+            for i in 0..<Int(frames) {
+                sum += channelData[i] * channelData[i]
+            }
+            let rms = sqrt(sum / Float(frames))
+            // Normalize RMS to a reasonable 0.0 - 1.0 range for the UI
+            let normalizedLevel = min(max(rms * 5.0, 0.0), 1.0)
+            eventContinuation?.yield(.audioLevelUpdated(normalizedLevel))
+        }
+    }
+    
+    func stopRecording() {
+        debounceTask?.cancel()
+        
+        if !currentLiveTranscript.isEmpty {
+            eventContinuation?.yield(.sentenceBoundaryReached(currentLiveTranscript))
+            currentLiveTranscript = ""
+        }
+        
+        audioEngine.stop()
+        audioEngine.inputNode.removeTap(onBus: 0)
+        recognitionRequest?.endAudio()
+        recognitionTask?.cancel()
+        
+        audioFile = nil
+        eventContinuation?.finish()
+        eventContinuation = nil
+        
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 }

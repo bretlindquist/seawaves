@@ -7,25 +7,35 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		241D4F60247524F3A575B0C8 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EB1B24566EB5CB50C507C36 /* MainTabView.swift */; };
 		458182B69B3FE28618BADE07 /* AudioEngineActor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEB4926616A5B760757DBCC6 /* AudioEngineActor.swift */; };
+		4689B4BADF7C2487C031B779 /* DatabaseModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16A300B266B77012B277C6A0 /* DatabaseModels.swift */; };
+		4F9EE68B96810C880F5AD190 /* RecentHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9225051BC32ECF3EEEAEF5D /* RecentHistoryView.swift */; };
 		506C1AA472CA7C553CDE8773 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3AFE4576A3203BD660D59E3 /* App.swift */; };
 		63BC7C63ECFC3ACE4AB74A25 /* WaveformView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FE0BF1D569C3AC16A2E406D /* WaveformView.swift */; };
 		789774679F715AAE2D4AE812 /* HistoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C180C83167E81F9C89D1029 /* HistoryManager.swift */; };
 		B1DA2DD8C0252CF4A0986327 /* SupportedLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDF86D31348ACEA234E7843C /* SupportedLanguage.swift */; };
 		B38DCA6E879F9ECB6C2AF5C4 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EE07477AE71BD17E7F47048 /* HistoryView.swift */; };
 		BEE34DD5EDCAF966B6703171 /* AudioController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF6443C117BB73630099AF54 /* AudioController.swift */; };
+		E87D605D243882846107D685 /* TranslateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E13315C45B25A22528A4BE /* TranslateView.swift */; };
 		EE14F388954195EDAAB95D7C /* TranslationSegment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E8236CDAC477C6CFD925CF /* TranslationSegment.swift */; };
 		F64B290A5A876193D7073892 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD1BDE1D0B3A47BB1E0E33FC /* ContentView.swift */; };
+		F9F66107747E8AA349AD7FA5 /* ArchiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 284DF8296C0EBF03C5747E52 /* ArchiveView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		0EE07477AE71BD17E7F47048 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		16A300B266B77012B277C6A0 /* DatabaseModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseModels.swift; sourceTree = "<group>"; };
 		16E8236CDAC477C6CFD925CF /* TranslationSegment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslationSegment.swift; sourceTree = "<group>"; };
 		1FC2E53C7F53E600E44A1F80 /* SoundcoreClone.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SoundcoreClone.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		284DF8296C0EBF03C5747E52 /* ArchiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveView.swift; sourceTree = "<group>"; };
+		3EB1B24566EB5CB50C507C36 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		5FE0BF1D569C3AC16A2E406D /* WaveformView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaveformView.swift; sourceTree = "<group>"; };
 		8C180C83167E81F9C89D1029 /* HistoryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryManager.swift; sourceTree = "<group>"; };
 		AF6443C117BB73630099AF54 /* AudioController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioController.swift; sourceTree = "<group>"; };
+		B9E13315C45B25A22528A4BE /* TranslateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranslateView.swift; sourceTree = "<group>"; };
 		C3AFE4576A3203BD660D59E3 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		C9225051BC32ECF3EEEAEF5D /* RecentHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentHistoryView.swift; sourceTree = "<group>"; };
 		CDF86D31348ACEA234E7843C /* SupportedLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportedLanguage.swift; sourceTree = "<group>"; };
 		DEB4926616A5B760757DBCC6 /* AudioEngineActor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngineActor.swift; sourceTree = "<group>"; };
 		FD1BDE1D0B3A47BB1E0E33FC /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -36,12 +46,17 @@
 			isa = PBXGroup;
 			children = (
 				C3AFE4576A3203BD660D59E3 /* App.swift */,
+				284DF8296C0EBF03C5747E52 /* ArchiveView.swift */,
 				AF6443C117BB73630099AF54 /* AudioController.swift */,
 				DEB4926616A5B760757DBCC6 /* AudioEngineActor.swift */,
 				FD1BDE1D0B3A47BB1E0E33FC /* ContentView.swift */,
+				16A300B266B77012B277C6A0 /* DatabaseModels.swift */,
 				8C180C83167E81F9C89D1029 /* HistoryManager.swift */,
 				0EE07477AE71BD17E7F47048 /* HistoryView.swift */,
+				3EB1B24566EB5CB50C507C36 /* MainTabView.swift */,
+				C9225051BC32ECF3EEEAEF5D /* RecentHistoryView.swift */,
 				CDF86D31348ACEA234E7843C /* SupportedLanguage.swift */,
+				B9E13315C45B25A22528A4BE /* TranslateView.swift */,
 				16E8236CDAC477C6CFD925CF /* TranslationSegment.swift */,
 				5FE0BF1D569C3AC16A2E406D /* WaveformView.swift */,
 			);
@@ -124,12 +139,17 @@
 			buildActionMask = 2147483647;
 			files = (
 				506C1AA472CA7C553CDE8773 /* App.swift in Sources */,
+				F9F66107747E8AA349AD7FA5 /* ArchiveView.swift in Sources */,
 				BEE34DD5EDCAF966B6703171 /* AudioController.swift in Sources */,
 				458182B69B3FE28618BADE07 /* AudioEngineActor.swift in Sources */,
 				F64B290A5A876193D7073892 /* ContentView.swift in Sources */,
+				4689B4BADF7C2487C031B779 /* DatabaseModels.swift in Sources */,
 				789774679F715AAE2D4AE812 /* HistoryManager.swift in Sources */,
 				B38DCA6E879F9ECB6C2AF5C4 /* HistoryView.swift in Sources */,
+				241D4F60247524F3A575B0C8 /* MainTabView.swift in Sources */,
+				4F9EE68B96810C880F5AD190 /* RecentHistoryView.swift in Sources */,
 				B1DA2DD8C0252CF4A0986327 /* SupportedLanguage.swift in Sources */,
+				E87D605D243882846107D685 /* TranslateView.swift in Sources */,
 				EE14F388954195EDAAB95D7C /* TranslationSegment.swift in Sources */,
 				63BC7C63ECFC3ACE4AB74A25 /* WaveformView.swift in Sources */,
 			);
